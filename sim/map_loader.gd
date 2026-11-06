@@ -130,6 +130,7 @@ static func load_dict(d: Dictionary, seed_value: int) -> Dictionary:
 		n.ka_acc = (n.id * 11) % Defs.TICK_HZ
 		if n.owner >= 0:
 			n.control = Defs.CONTROL_MAX
+			n.reset_access()
 		if n.type == Defs.NodeType.GATEWAY:
 			n.gw_credit = Defs.GATEWAY_CAP_PER_S * Defs.GATEWAY_BURST_TICKS
 	for p in player_count:
@@ -137,6 +138,12 @@ static func load_dict(d: Dictionary, seed_value: int) -> Dictionary:
 		ps.id = p
 		ps.core_node = core_of[p]
 		w.players.append(ps)
+		for k in Defs.AGENTS_PER_PLAYER:
+			var ag := AgentState.new()
+			ag.id = k
+			ag.owner = p
+			ag.node = ps.core_node
+			w.agents.append(ag)
 
 	# Связность графа.
 	if not _connected(w):

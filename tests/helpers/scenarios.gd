@@ -23,3 +23,18 @@ static func build_economy(seed_value: int) -> World:
 	w.submit(Command.start_flow(0, 400, 1, 4, Defs.PacketType.INIT, 20))
 	w.submit(Command.start_flow(1, 500, 10, 14, Defs.PacketType.FLOOD, 9))
 	return w
+
+## Агенты в работе: INIT-расширение, смена ключей и установка ПО.
+static func build_agents(seed_value: int) -> World:
+	var res: Dictionary = MapLoader.load_file("res://maps/duel.json", seed_value)
+	var w: World = res["world"]
+	w.players[0].bank = 150
+	w.submit(Command.start_flow(0, 5, 0, 2, Defs.PacketType.INIT, 20))
+	w.submit(Command.start_flow(0, 5, 1, 3, Defs.PacketType.INIT, 20))
+	w.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.INSTALL_SOFT, 1, Defs.SoftType.FIREWALL))
+	w.submit(Command.queue_task(0, 0, 1, Defs.TaskKind.SET_KEYS, 1))
+	w.submit(Command.queue_task(0, 300, 2, Defs.TaskKind.INSTALL_SOFT, 2, Defs.SoftType.FIREWALL))
+	w.submit(Command.queue_task(0, 400, 1, Defs.TaskKind.CHANGE_PASSWORD, 3))
+	w.submit(Command.start_flow(1, 100, 10, 12, Defs.PacketType.INIT, 20))
+	w.submit(Command.queue_task(1, 120, 0, Defs.TaskKind.SET_KEYS, 10))
+	return w

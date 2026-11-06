@@ -2,7 +2,7 @@ class_name Command
 extends RefCounted
 ## Единственный способ изменить мир. Игрок, бот, сеть и реплей кладут команды в очередь.
 
-enum Type { NOOP, START_FLOW, STOP_FLOW, SET_FLOW_RATE }
+enum Type { NOOP, START_FLOW, STOP_FLOW, SET_FLOW_RATE, QUEUE_TASK, CLEAR_QUEUE }
 
 var type: int = Type.NOOP
 var player: int = 0
@@ -25,6 +25,13 @@ static func stop_flow(p: int, at_tick: int, flow_id: int) -> Command:
 
 static func set_flow_rate(p: int, at_tick: int, flow_id: int, rate: int) -> Command:
 	return make(Type.SET_FLOW_RATE, p, at_tick, [flow_id, rate])
+
+## Поставить задачу в очередь агента. Перед выполнением агент сам доедет до узла.
+static func queue_task(p: int, at_tick: int, agent: int, kind: int, node: int, arg: int = 0) -> Command:
+	return make(Type.QUEUE_TASK, p, at_tick, [agent, kind, node, arg])
+
+static func clear_queue(p: int, at_tick: int, agent: int) -> Command:
+	return make(Type.CLEAR_QUEUE, p, at_tick, [agent])
 
 func to_array() -> Array:
 	return [tick, type, player, args]

@@ -69,8 +69,9 @@ static func emit(w: World) -> void:
 					Network.inject(w, sup.id, n.id, Defs.PacketType.KEEPALIVE, n.owner, 0)
 
 static func _produce_and_send_data(w: World, n: NodeState) -> void:
-	var limit: int = int(Defs.BUFFER_LIMIT[n.type])
-	n.produce_acc += Defs.DATA_RATE
+	var limit: int = buffer_limit(n)
+	var data_pct: int = Defs.RELAY_DATA_PERCENT if n.has_soft(Defs.SoftType.RELAY) else 100
+	n.produce_acc += Defs.DATA_RATE * data_pct / 100
 	while n.produce_acc >= Defs.TICK_HZ:
 		n.produce_acc -= Defs.TICK_HZ
 		if n.buffer < limit:
@@ -88,6 +89,12 @@ static func _produce_and_send_data(w: World, n: NodeState) -> void:
 		else:
 			break   # очередь порта полна: байты остаются в буфере
 
+static func buffer_limit(n: NodeState) -> int:
+	var lim: int = int(Defs.BUFFER_LIMIT[n.type])
+	if lim > 0 and n.has_soft(Defs.SoftType.STORAGE):
+		lim += Defs.STORAGE_BUFFER_BONUS
+	return lim
+
 ## Начало тика: окно дохода и кредит потолка шлюза.
 static func begin_tick(w: World) -> void:
 	var slot: int = w.tick % Defs.LOAD_WINDOW
@@ -96,6 +103,8 @@ static func begin_tick(w: World) -> void:
 	for n in w.nodes:
 		if n.type == Defs.NodeType.GATEWAY:
 			n.gw_credit = mini(n.gw_credit + Defs.GATEWAY_CAP_PER_S, Defs.GATEWAY_CAP_PER_S * Defs.GATEWAY_BURST_TICKS)
+		if n.has_soft(Defs.SoftType.FIREWALL):
+			n.fw_credit = mini(n.fw_credit + Defs.FIREWALL_LIMIT_PER_S, Defs.FIREWALL_LIMIT_PER_S * Defs.FIREWALL_BURST_TICKS)
 
 ## Конец тика: распад контроля и шкал захвата.
 static func upkeep(w: World) -> void:
@@ -118,7 +127,11 @@ static func upkeep(w: World) -> void:
 				n.capture[p] = maxi(0, n.capture[p] - Defs.CAPTURE_DECAY_PER_S)
 
 static func release_node(w: World, n: NodeState) -> void:
+	var old_owner: int = n.owner
 	n.owner = Defs.NEUTRAL
+	n.clear_soft()
+	n.reset_access()
+	Agents.on_node_lost(w, n.id, old_owner)
 	n.control = 0
 	n.buffer = 0
 	n.supplier = -1
@@ -161,6 +174,8 @@ static func capture_node(w: World, node: NodeState, owner: int) -> void:
 	node.control = Defs.CAPTURE_START_CONTROL
 	node.capture.fill(0)
 	node.buffer = 0
+	node.clear_soft()
+	node.reset_access()
 	w.players[owner].captures += 1
 	w.routes_dirty = true
 	# Потоки INIT на этот узел больше не нужны.

@@ -12,6 +12,9 @@ var input_ctl: InputCtl
 var camera: CameraCtl
 var overlay: DebugOverlay
 var hud: Hud
+var card: NodeCard
+var agent_panel: AgentPanel
+var ring: RingMenu
 var local_player: int = 0
 var _acc: float = 0.0
 var _step_ms_avg: float = 0.0
@@ -48,6 +51,17 @@ func _ready() -> void:
 	input_ctl.local_player = local_player
 	input_ctl.z_index = 4
 	add_child(input_ctl)
+	ring = RingMenu.new()
+	add_child(ring)
+	input_ctl.ring = ring
+	ring.chosen.connect(input_ctl.apply_item)
+	card = NodeCard.new()
+	card.world = world
+	add_child(card)
+	agent_panel = AgentPanel.new()
+	agent_panel.world = world
+	agent_panel.player = local_player
+	add_child(agent_panel)
 	hud = Hud.new()
 	hud.world = world
 	hud.player = local_player
@@ -77,5 +91,9 @@ func _process(delta: float) -> void:
 	packets.refresh(world, frac)
 	drops_fx.ingest(world)
 	links_view.hover_flow = input_ctl.hover_flow
+	nodes_view.selected_node = input_ctl.selected_node
+	nodes_view.agent_player = local_player
+	card.selected_node = input_ctl.selected_node
+	agent_panel.selected_agent = input_ctl.selected_agent
 	overlay.step_ms = _step_ms_avg
 	overlay.drops_per_s = world.total_drops() - _drop_hist[(world.tick + 1) % Defs.TICK_HZ]

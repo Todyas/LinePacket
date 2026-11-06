@@ -10,9 +10,14 @@ var camera: CameraCtl
 var local_player: int = 0
 var flow_type: int = Defs.PacketType.FLOOD
 var drag_from: int = -1
+var selected_node: int = -1
+var selected_agent: int = 0
+var ring: RingMenu
+var _press_pos: Vector2 = Vector2.ZERO
 var hover_flow: int = -1
 var mouse_world: Vector2 = Vector2.ZERO
 var _panning: bool = false
+var ring_target: int = -1
 
 const MODE_KEYS: Dictionary = {
 	KEY_F: Defs.PacketType.FLOOD,
@@ -40,6 +45,9 @@ func _on_button(mb: InputEventMouseButton) -> void:
 	match mb.button_index:
 		MOUSE_BUTTON_LEFT:
 			if mb.pressed:
+				if ring != null and ring.is_open:
+					ring.close()
+				_press_pos = mb.position
 				var nid: int = Picking.hit_node(world, mouse_world, NODE_HIT_RADIUS)
 				if nid >= 0 and world.nodes[nid].owner == local_player:
 					drag_from = nid
@@ -47,10 +55,23 @@ func _on_button(mb: InputEventMouseButton) -> void:
 					_panning = true
 			else:
 				_panning = false
+				var is_click: bool = mb.position.distance_to(_press_pos) < 6.0
 				if drag_from >= 0:
-					_finish_drag()
+					var target: int = Picking.hit_node(world, mouse_world, NODE_HIT_RADIUS)
+					if target >= 0 and target != drag_from:
+						_finish_drag()
+					else:
+						selected_node = drag_from
+				elif is_click:
+					selected_node = Picking.hit_node(world, mouse_world, NODE_HIT_RADIUS)
 				drag_from = -1
 			queue_redraw()
+		MOUSE_BUTTON_RIGHT:
+			if mb.pressed and ring != null:
+				var tgt: int = Picking.hit_node(world, mouse_world, NODE_HIT_RADIUS)
+				var items: Array[Dictionary] = RingMenu.items_for(world, local_player, selected_node, tgt)
+				ring_target = tgt
+				ring.open(mb.position, items)
 		MOUSE_BUTTON_MIDDLE:
 			_panning = mb.pressed
 		MOUSE_BUTTON_WHEEL_UP:
@@ -82,10 +103,24 @@ func _on_key(k: InputEventKey) -> void:
 		var t: int = MODE_KEYS[k.keycode]
 		if Defs.PLAYER_FLOW_TYPES.has(t):
 			flow_type = t
+	elif k.keycode >= KEY_1 and k.keycode <= KEY_3:
+		selected_agent = k.keycode - KEY_1
+	elif k.keycode == KEY_ESCAPE:
+		if ring != null and ring.is_open:
+			ring.close()
+		else:
+			selected_node = -1
 	elif k.keycode == KEY_X or k.keycode == KEY_DELETE:
 		if hover_flow >= 0:
 			submit(Command.stop_flow(local_player, world.tick, hover_flow))
 			hover_flow = -1
+
+## Выбран пункт кольцевого меню.
+func apply_item(item: Dictionary) -> void:
+	if item["kind"] == "task":
+		submit(Command.queue_task(local_player, world.tick, selected_agent, int(item["task"]), ring_target, int(item["arg"])))
+	elif item["kind"] == "flow" and selected_node >= 0:
+		submit(Command.start_flow(local_player, world.tick, selected_node, ring_target, int(item["flow_type"]), Defs.FLOW_DEFAULT_RATE))
 
 func submit(cmd: Command) -> void:
 	world.submit(cmd)

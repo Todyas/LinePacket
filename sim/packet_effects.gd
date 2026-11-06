@@ -11,5 +11,7 @@ static func deliver(w: World, node: NodeState, idx: int) -> void:
 			Economy.on_keepalive(w, node, owner)
 		Defs.PacketType.INIT:
 			Economy.on_init(w, node, owner)
+		Defs.PacketType.AGENT:
+			Agents.on_arrived(w, node, owner, w.pool.flow[idx])
 		Defs.PacketType.FLOOD:
 			pass   # эффект флуда — плата CPU цели за прибытие, уже списана

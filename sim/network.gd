@@ -13,6 +13,7 @@ static func step(w: World) -> void:
 	_process_arrivals(w)
 	_emit_flows(w)
 	Economy.emit(w)
+	Agents.step(w)
 	_drain_ports(w)
 	Economy.upkeep(w)
 	var slot: int = w.tick % Defs.LOAD_WINDOW
@@ -44,8 +45,20 @@ static func _enqueue_out(w: World, node_id: int, idx: int) -> bool:
 	l.port_units[d] += sz
 	return true
 
+## Есть ли у узла маршрут к цели и место в очереди порта под пакет такого размера.
+static func has_room(w: World, node_id: int, dst: int, size: int) -> bool:
+	if w.routes.size() <= dst:
+		return false
+	var lid: int = w.routes[dst][node_id]
+	if lid < 0:
+		return false
+	var l: LinkState = w.links[lid]
+	return l.port_units[l.dir_from(node_id)] + size <= l.queue_limit
+
 static func _drop(w: World, idx: int, lid: int, d: int, kind: int) -> void:
 	w.drops[kind] += 1
+	if w.pool.ptype[idx] == Defs.PacketType.AGENT:
+		Agents.on_packet_lost(w, w.pool.owner[idx], w.pool.flow[idx])
 	w.pool.release(idx)
 	if lid >= 0:
 		w.recent_drops.append([w.tick, lid, d])
@@ -68,6 +81,9 @@ static func _process_arrivals(w: World) -> void:
 static func _arrive(w: World, node_id: int, idx: int, via_link: int, via_dir: int) -> void:
 	var pool: PacketPool = w.pool
 	var n: NodeState = w.nodes[node_id]
+	if _firewall_blocks(w, n, idx):
+		_drop(w, idx, via_link, via_dir, World.DROP_FIREWALL)
+		return
 	if pool.dst[idx] == node_id:
 		var cost: int = int(Defs.CPU_COST_ARRIVE[pool.ptype[idx]])
 		if not n.spend_cpu(cost):
@@ -82,6 +98,23 @@ static func _arrive(w: World, node_id: int, idx: int, via_link: int, via_dir: in
 			return
 		_enqueue_out(w, node_id, idx)
 
+## Файрвол узла: чужие FLOOD и PAYLOAD проходят не чаще лимита; проверка стоит CPU.
+static func _firewall_blocks(w: World, n: NodeState, idx: int) -> bool:
+	if n.owner < 0 or not n.has_soft(Defs.SoftType.FIREWALL):
+		return false
+	var pool: PacketPool = w.pool
+	if pool.owner[idx] == n.owner:
+		return false
+	var t: int = pool.ptype[idx]
+	if t != Defs.PacketType.FLOOD and t != Defs.PacketType.PAYLOAD and t != Defs.PacketType.PAYLOAD_HIDDEN:
+		return false
+	if not n.spend_cpu(Defs.FIREWALL_CPU_COST):
+		return false   # проверить нечем: дальше пакет разбирается как обычно (и упрётся в CPU)
+	if n.fw_credit < Defs.TICK_HZ:
+		return true
+	n.fw_credit -= Defs.TICK_HZ
+	return false
+
 static func _emit_flows(w: World) -> void:
 	var i: int = 0
 	while i < w.flows.size():
@@ -91,7 +124,8 @@ static func _emit_flows(w: World) -> void:
 			# Источник потерян — поток прекращается.
 			w.flows.remove_at(i)
 			continue
-		f.acc += f.rate
+		var pct: int = Defs.RELAY_FLOW_PERCENT if src.has_soft(Defs.SoftType.RELAY) else 100
+		f.acc += f.rate * pct / 100
 		while f.acc >= Defs.TICK_HZ:
 			f.acc -= Defs.TICK_HZ
 			if not src.spend_cpu(Defs.CPU_COST_EMIT):

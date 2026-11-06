@@ -140,3 +140,71 @@ const INIT_NEEDED: Dictionary = {
 }
 ## Шкала захвата теряет столько пунктов в секунду, если на узел не идёт INIT.
 const CAPTURE_DECAY_PER_S: int = 3
+
+## --- Агенты, доступ и ПО (S3) ---
+
+enum AccessMode { PASSWORD_WEAK, PASSWORD_STRONG, KEYS }
+
+enum SoftType { FIREWALL, ANTIVIRUS, IDS, SNIFFER, STORAGE, RELAY }
+
+const SOFT_NAMES: Dictionary = {
+	SoftType.FIREWALL: "Файрвол",
+	SoftType.ANTIVIRUS: "Антивирус",
+	SoftType.IDS: "IDS",
+	SoftType.SNIFFER: "Сниффер",
+	SoftType.STORAGE: "Хранилище",
+	SoftType.RELAY: "Ретранслятор",
+}
+
+## time_s — длительность установки, cost — байты, cpu_per_s — постоянная нагрузка на CPU узла.
+const SOFT_DEFS: Dictionary = {
+	SoftType.FIREWALL: {"time_s": 10, "cost": 40, "cpu_per_s": 0},
+	SoftType.ANTIVIRUS: {"time_s": 15, "cost": 60, "cpu_per_s": 8},
+	SoftType.IDS: {"time_s": 12, "cost": 50, "cpu_per_s": 8},
+	SoftType.SNIFFER: {"time_s": 15, "cost": 60, "cpu_per_s": 4},
+	SoftType.STORAGE: {"time_s": 8, "cost": 20, "cpu_per_s": 2},
+	SoftType.RELAY: {"time_s": 12, "cost": 60, "cpu_per_s": 6},
+}
+
+## ПО, доступное игроку в текущем спринте (растёт вместе с механиками, которые ПО обслуживает).
+const PLAYER_SOFT: Array = [SoftType.FIREWALL, SoftType.STORAGE, SoftType.RELAY]
+
+## Слоты ПО на узле.
+const SOFT_SLOTS: Dictionary = {
+	NodeType.CORE: 3,
+	NodeType.MACHINE: 2,
+	NodeType.GATEWAY: 2,
+	NodeType.SWITCH: 0,
+}
+const MAX_SOFT_SLOTS: int = 3
+
+## Файрвол: чужие FLOOD и PAYLOAD проходят не чаще лимита в секунду; каждая проверка стоит CPU.
+const FIREWALL_LIMIT_PER_S: int = 8
+const FIREWALL_CPU_COST: int = 1
+const FIREWALL_BURST_TICKS: int = 4
+## Хранилище прибавляет к буферу байт.
+const STORAGE_BUFFER_BONUS: int = 100
+## Ретранслятор: исходящие потоки с узла в процентах от заданных; собственная выработка DATA — в процентах.
+const RELAY_FLOW_PERCENT: int = 200
+const RELAY_DATA_PERCENT: int = 50
+
+const AGENTS_PER_PLAYER: int = 3
+const AGENT_QUEUE_MAX: int = 3
+## Агент, которого выкинули или потеряли в пути, появляется на ядре через 20 секунд.
+const AGENT_RETURN_TICKS: int = 400
+
+enum TaskKind { MOVE, CHANGE_PASSWORD, SET_KEYS, INSTALL_SOFT }
+
+const TASK_NAMES: Dictionary = {
+	TaskKind.MOVE: "Перейти",
+	TaskKind.CHANGE_PASSWORD: "Сменить пароль",
+	TaskKind.SET_KEYS: "Ключи",
+	TaskKind.INSTALL_SOFT: "Поставить ПО",
+}
+
+## Время (с) и цена (байты) задач без аргумента. Установка ПО берёт числа из SOFT_DEFS.
+const TASK_DEFS: Dictionary = {
+	TaskKind.MOVE: {"time_s": 0, "cost": 0},
+	TaskKind.CHANGE_PASSWORD: {"time_s": 4, "cost": 5},
+	TaskKind.SET_KEYS: {"time_s": 10, "cost": 15},
+}

@@ -9,7 +9,8 @@ var y: int = 0
 var links: Array[int] = []   # id линков, по возрастанию
 
 # CPU: кредит копится по cpu единиц за тик, одна операция стоит TICK_HZ.
-var cpu_per_s: int = 0
+var cpu_base: int = 0                      # мощность по типу узла
+var cpu_per_s: int = 0                     # свободная мощность: база минус постоянная нагрузка ПО
 var cpu_credit: int = 0
 var cpu_used_tick: int = 0
 var cpu_hist: PackedInt32Array = PackedInt32Array()   # затраты по тикам за последнюю секунду
@@ -26,21 +27,69 @@ var buffer: int = 0                        # байты, не довезённы
 var produce_acc: int = 0
 var send_acc: int = 0
 var gw_credit: int = 0                     # потолок шлюза
+# ПО и доступ.
+var soft: PackedInt32Array = PackedInt32Array()
+var fw_credit: int = 0
+var access_mode: int = Defs.AccessMode.PASSWORD_WEAK
+var access_mask: int = 0                   # у каких игроков (битовая маска) есть действующий доступ
+var key_version: int = 0
 
 func _init() -> void:
 	cpu_hist.resize(Defs.LOAD_WINDOW)
 	capture.resize(Defs.MAX_PLAYERS)
 
 func setup_cpu() -> void:
-	cpu_per_s = int(Defs.NODE_DEFS[type]["cpu"])
+	cpu_base = int(Defs.NODE_DEFS[type]["cpu"])
+	soft.resize(Defs.MAX_SOFT_SLOTS)
+	soft.fill(-1)
+	refresh_cpu()
 	cpu_credit = cpu_per_s * Defs.BURST_TICKS
+
+## ПО ест CPU постоянно: свободная мощность = база − нагрузка ПО (но не меньше 4).
+func refresh_cpu() -> void:
+	cpu_per_s = maxi(4, cpu_base - soft_load())
+
+func soft_load() -> int:
+	var total: int = 0
+	for t in soft:
+		if t >= 0:
+			total += int(Defs.SOFT_DEFS[t]["cpu_per_s"])
+	return total
+
+func has_soft(t: int) -> bool:
+	return soft.has(t)
+
+func free_slots() -> int:
+	var used: int = 0
+	for t in soft:
+		if t >= 0:
+			used += 1
+	return int(Defs.SOFT_SLOTS[type]) - used
+
+func install_soft(t: int) -> bool:
+	if free_slots() <= 0 or has_soft(t):
+		return false
+	for i in soft.size():
+		if soft[i] < 0:
+			soft[i] = t
+			refresh_cpu()
+			return true
+	return false
+
+func clear_soft() -> void:
+	soft.fill(-1)
+	refresh_cpu()
+
+func reset_access() -> void:
+	access_mode = Defs.AccessMode.PASSWORD_WEAK
+	access_mask = 0 if owner < 0 else (1 << owner)
 
 ## Загрузка CPU за последнюю секунду, 0..100 (может превышать при упоре — ограничено 100).
 func cpu_load_pct() -> int:
 	var total: int = 0
 	for v in cpu_hist:
 		total += v
-	return mini(100, total * 100 / cpu_per_s)
+	return mini(100, (total + soft_load()) * 100 / cpu_base)
 
 func spend_cpu(cost: int) -> bool:
 	var need: int = cost * Defs.TICK_HZ
@@ -68,3 +117,8 @@ func hash_into(h: Hasher) -> void:
 	h.add(produce_acc)
 	h.add(send_acc)
 	h.add(gw_credit)
+	h.add_array(soft)
+	h.add(fw_credit)
+	h.add(access_mode)
+	h.add(access_mask)
+	h.add(key_version)

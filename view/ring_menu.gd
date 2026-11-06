@@ -1,0 +1,60 @@
+class_name RingMenu
+extends CanvasLayer
+## Кольцевое меню по ПКМ: действия для узла под курсором.
+
+signal chosen(item: Dictionary)
+
+var _buttons: Array[Button] = []
+var is_open: bool = false
+
+## Пункты меню: [{label, kind: "task"|"flow", task: вид, arg, flow_type}]. Чистая функция — тестируется без сцены.
+static func items_for(w: World, player: int, selected_node: int, target: int) -> Array[Dictionary]:
+	var items: Array[Dictionary] = []
+	if target < 0:
+		return items
+	var t: NodeState = w.nodes[target]
+	if t.owner == player and t.type != Defs.NodeType.SWITCH:
+		items.append({"label": "Агент сюда", "kind": "task", "task": Defs.TaskKind.MOVE, "arg": 0})
+		var pw: Array = Agents.task_params(Defs.TaskKind.CHANGE_PASSWORD, 0)
+		items.append({"label": "Сменить пароль (%d Б, %d с)" % [pw[1], int(pw[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.CHANGE_PASSWORD, "arg": 0})
+		var kp: Array = Agents.task_params(Defs.TaskKind.SET_KEYS, 0)
+		items.append({"label": "Ключи (%d Б, %d с)" % [kp[1], int(kp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.SET_KEYS, "arg": 0})
+		for s in Defs.PLAYER_SOFT:
+			if t.has_soft(s) or t.free_slots() <= 0:
+				continue
+			var sp: Array = Agents.task_params(Defs.TaskKind.INSTALL_SOFT, s)
+			items.append({"label": "%s (%d Б, %d с)" % [Defs.SOFT_NAMES[s], sp[1], int(sp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.INSTALL_SOFT, "arg": s})
+	if selected_node >= 0 and selected_node != target and w.nodes[selected_node].owner == player:
+		if t.owner == Defs.NEUTRAL and Defs.INIT_NEEDED.has(t.type) and Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.INIT):
+			items.append({"label": "Захватить (INIT)", "kind": "flow", "flow_type": Defs.PacketType.INIT})
+		if t.owner != player and t.type != Defs.NodeType.SWITCH and Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.FLOOD):
+			items.append({"label": "Флуд (FLOOD)", "kind": "flow", "flow_type": Defs.PacketType.FLOOD})
+	return items
+
+func open(screen_pos: Vector2, items: Array[Dictionary]) -> void:
+	close()
+	if items.is_empty():
+		return
+	layer = 8
+	is_open = true
+	var n: int = items.size()
+	var rx: float = 150.0 + 12.0 * n
+	var ry: float = 70.0 + 14.0 * n
+	for i in n:
+		var ang: float = -PI / 2.0 + TAU * float(i) / float(n)
+		var b := Button.new()
+		b.text = items[i]["label"]
+		b.size = Vector2(210, 32)
+		b.position = screen_pos + Vector2(cos(ang) * rx, sin(ang) * ry) - b.size * 0.5
+		var item: Dictionary = items[i]
+		b.pressed.connect(func() -> void:
+			chosen.emit(item)
+			close())
+		add_child(b)
+		_buttons.append(b)
+
+func close() -> void:
+	for b in _buttons:
+		b.queue_free()
+	_buttons.clear()
+	is_open = false

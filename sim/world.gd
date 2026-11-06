@@ -10,6 +10,7 @@ var nodes: Array[NodeState] = []
 var links: Array[LinkState] = []
 var players: Array[PlayerState] = []
 var flows: Array[FlowState] = []
+var agents: Array[AgentState] = []          # по Defs.AGENTS_PER_PLAYER на игрока, подряд
 var next_flow_id: int = 1
 var pool: PacketPool = PacketPool.new()
 var routes: Array[PackedInt32Array] = []   # routes[dst][node] = id линка следующего шага или -1
@@ -21,7 +22,8 @@ const DROP_QUEUE: int = 0     # очередь выходного порта п�
 const DROP_CPU: int = 1       # у узла не хватило CPU
 const DROP_NOROUTE: int = 2   # нет маршрута
 const DROP_GATEWAY: int = 3   # потолок шлюза или чужой шлюз
-var drops: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
+const DROP_FIREWALL: int = 4  # файрвол сверх лимита
+var drops: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0])
 var delivered: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0, 0, 0])
 ## Недавние потери для отрисовки: [тик, id линка, направление]. В хеш не входит.
 var recent_drops: Array = []
@@ -67,6 +69,10 @@ func _apply(c: Command) -> void:
 			ok = _apply_stop_flow(c)
 		Command.Type.SET_FLOW_RATE:
 			ok = _apply_set_flow_rate(c)
+		Command.Type.QUEUE_TASK:
+			ok = _apply_queue_task(c)
+		Command.Type.CLEAR_QUEUE:
+			ok = _apply_clear_queue(c)
 		_:
 			ok = false
 	if ok:
@@ -126,8 +132,36 @@ func _apply_set_flow_rate(c: Command) -> bool:
 	f.rate = rate
 	return true
 
+func _apply_queue_task(c: Command) -> bool:
+	if c.args.size() != 4 or c.player < 0 or c.player >= players.size():
+		return false
+	var idx: int = c.args[0]
+	if idx < 0 or idx >= Defs.AGENTS_PER_PLAYER:
+		return false
+	var a: AgentState = Agents.agent_of(self, c.player, idx)
+	if a.queue.size() >= Defs.AGENT_QUEUE_MAX:
+		return false
+	if not Agents.validate_task(self, c.player, c.args[1], c.args[2], c.args[3]):
+		return false
+	a.queue.append([c.args[1], c.args[2], c.args[3]])
+	return true
+
+func _apply_clear_queue(c: Command) -> bool:
+	if c.args.size() != 1 or c.player < 0 or c.player >= players.size():
+		return false
+	var idx: int = c.args[0]
+	if idx < 0 or idx >= Defs.AGENTS_PER_PLAYER:
+		return false
+	var a: AgentState = Agents.agent_of(self, c.player, idx)
+	a.queue.clear()
+	if a.mode == AgentState.Mode.WORK:
+		a.mode = AgentState.Mode.IDLE   # оплаченная работа пропадает
+		a.work_left = 0
+		a.work_total = 0
+	return true
+
 func total_drops() -> int:
-	return drops[DROP_QUEUE] + drops[DROP_CPU] + drops[DROP_NOROUTE] + drops[DROP_GATEWAY]
+	return drops[DROP_QUEUE] + drops[DROP_CPU] + drops[DROP_NOROUTE] + drops[DROP_GATEWAY] + drops[DROP_FIREWALL]
 
 func get_flow(fid: int) -> FlowState:
 	for f in flows:
@@ -153,6 +187,9 @@ func state_hash() -> int:
 	h.add(flows.size())
 	for f in flows:
 		f.hash_into(h)
+	h.add(agents.size())
+	for a in agents:
+		a.hash_into(h)
 	pool.hash_into(h)
 	h.add_array(Array(drops))
 	h.add_array(Array(delivered))

@@ -7,6 +7,8 @@ var world: World
 var draw_links: bool = true
 var draw_nodes: bool = false
 var hover_flow: int = -1
+var selected_node: int = -1
+var agent_player: int = 0
 
 const NODE_RADIUS: float = 22.0
 
@@ -101,7 +103,10 @@ func _draw_node(n: NodeState, font: Font) -> void:
 			if n.capture[p] > 0:
 				var frac: float = clampf(float(n.capture[p]) / float(needed), 0.0, 1.0)
 				draw_arc(c, NODE_RADIUS + 12.0 + 4.0 * p, -PI / 2.0, -PI / 2.0 + TAU * frac, 40, Palette.of_owner(p), 4.0, true)
-	var label: String = _node_label(n)
+	if n.id == selected_node:
+		draw_arc(c, NODE_RADIUS + 8.0, 0.0, TAU, 48, Color(1, 1, 1, 0.85), 2.0, true)
+	_draw_agent_marks(n, c, font)
+	var label: String = Names.node_label(n)
 	draw_string(font, c + Vector2(-20, NODE_RADIUS + 22), label, HORIZONTAL_ALIGNMENT_CENTER, 40, 14, Palette.NEUTRAL)
 	if n.owner >= 0 and n.buffer > 0:
 		draw_string(font, c + Vector2(NODE_RADIUS + 6, -NODE_RADIUS), "%d" % n.buffer, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.85, 0.3))
@@ -121,15 +126,13 @@ func _draw_control_fill(pts: PackedVector2Array, c: Vector2, control: int, col: 
 		if poly.size() >= 3:
 			draw_colored_polygon(poly, Color(col, 0.55))
 
-func _node_label(n: NodeState) -> String:
-	var prefix: String = "?"
-	match n.type:
-		Defs.NodeType.CORE:
-			prefix = "C"
-		Defs.NodeType.MACHINE:
-			prefix = "M"
-		Defs.NodeType.GATEWAY:
-			prefix = "G"
-		Defs.NodeType.SWITCH:
-			prefix = "S"
-	return "%s%d" % [prefix, n.id]
+## Номера своих агентов, стоящих на узле.
+func _draw_agent_marks(n: NodeState, c: Vector2, font: Font) -> void:
+	var k: int = 0
+	for a in world.agents:
+		if a.node != n.id or a.owner != agent_player:
+			continue
+		var pos: Vector2 = c + Vector2(-NODE_RADIUS - 14.0 - 16.0 * k, -NODE_RADIUS)
+		draw_rect(Rect2(pos - Vector2(7, 9), Vector2(14, 16)), Palette.of_owner(a.owner))
+		draw_string(font, pos + Vector2(-4, 4), "%d" % (a.id + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Palette.BACKGROUND)
+		k += 1

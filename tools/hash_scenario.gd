@@ -7,5 +7,7 @@ func _initialize() -> void:
 	a.run(1000)
 	var b: World = Scenarios.build_economy(778)
 	b.run(1500)
-	print("HASH ", a.state_hash(), " ", b.state_hash())
+	var c: World = Scenarios.build_agents(779)
+	c.run(1500)
+	print("HASH ", a.state_hash(), " ", b.state_hash(), " ", c.state_hash())
 	quit(0)

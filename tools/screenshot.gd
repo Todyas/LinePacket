@@ -23,6 +23,9 @@ func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames == 5 and _main.world != null:
 		_setup_scenario()
+	if _scenario == "ui" and _frames == _target - 2:
+		_main.input_ctl.ring_target = 3
+		_main.ring.open(Vector2(420, 640), RingMenu.items_for(_main.world, 0, 2, 3))
 	if _frames >= _target:
 		_main.hud._process(0.0)
 		var img: Image = root.get_texture().get_image()
@@ -43,6 +46,16 @@ func _setup_scenario() -> void:
 			w.submit(Command.start_flow(1, 0, 10, 12, Defs.PacketType.INIT, 12))
 			w.submit(Command.start_flow(1, 0, 11, 13, Defs.PacketType.INIT, 12))
 			w.submit(Command.start_flow(1, 100, 11, 14, Defs.PacketType.INIT, 9))
+		"ui":
+			w.players[0].bank = 150
+			w.submit(Command.start_flow(0, 0, 0, 2, Defs.PacketType.INIT, 20))
+			w.submit(Command.start_flow(0, 0, 1, 3, Defs.PacketType.INIT, 20))
+			w.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.INSTALL_SOFT, 1, Defs.SoftType.FIREWALL))
+			w.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.SET_KEYS, 2))
+			w.submit(Command.queue_task(0, 0, 1, Defs.TaskKind.CHANGE_PASSWORD, 3))
+			w.submit(Command.queue_task(0, 0, 1, Defs.TaskKind.SET_KEYS, 1))
+			_main.input_ctl.selected_node = 2
+			_main.input_ctl.selected_agent = 1
 		_:
 			w.submit(Command.start_flow(0, 0, 0, 22, Defs.PacketType.FLOOD, 12))
 			w.submit(Command.start_flow(0, 0, 1, 17, Defs.PacketType.FLOOD, 20))
