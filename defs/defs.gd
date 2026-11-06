@@ -236,11 +236,11 @@ static func flow_byte_cost(ptype: int) -> int:
 		return PAYLOAD_HIDDEN_COST_BYTES
 	return 0
 const INFECT_MAX: int = 100000
-const INFECT_GAIN: int = 4000
+const INFECT_GAIN: int = 1500
 ## Шкала заражения тает сама; антивирус сбивает её быстрее и режет прирост.
 const INFECT_DECAY_PER_S: int = 1000
-const ANTIVIRUS_GAIN_PERCENT: int = 40
-const ANTIVIRUS_DECAY_PER_S: int = 6000
+const ANTIVIRUS_GAIN_PERCENT: int = 60
+const ANTIVIRUS_DECAY_PER_S: int = 3000
 ## Контроль машины сразу после смены владельца.
 const TAKEOVER_CONTROL: int = 50000
 
@@ -281,7 +281,7 @@ const HIDDEN_NAMES: Dictionary = {
 
 ## Скрытый PAYLOAD: дороже обычного и растёт медленнее; владелец шкалу не видит.
 const PAYLOAD_HIDDEN_COST_BYTES: int = 2
-const INFECT_HIDDEN_GAIN: int = 1500
+const INFECT_HIDDEN_GAIN: int = 800
 
 ## Сколько секунд IDS или антивирус должны «смотреть» на машину, чтобы найти скрытое.
 const HIDDEN_DETECT_S: Dictionary = {
@@ -295,3 +295,29 @@ const SNIFFER_STEAL_PERCENT: int = 25
 ## Активация вируса: «отключить ПО» выводит ПО машины из строя на это число тиков.
 const ACTIVATE_DISABLE_SOFT_TICKS: int = 400
 enum ActivateMode { TAKEOVER, DISABLE_SOFT }
+
+## --- Бот (S7) ---
+
+## Характер бота: числа поведения. Один уровень сложности.
+const BOT_PROFILE: Dictionary = {
+	"think_ticks": 10,          # раз в полсекунды
+	"reserve": 5,               # байт, которые не тратит на задачи агентов
+	"max_init_flows": 2,        # одновременных захватов нейтралов
+	"base_nodes": 4,            # сколько узлов держит без шлюзов
+	"nodes_per_gateway": 4,     # и сколько прибавляет на каждый шлюз
+	"expand_hops": 2,           # насколько далеко от своих узлов тянется захват
+	"toward_enemy": 6,          # тяга расширения к чужому ядру (за хоп до него)
+	"scan_interval_s": 15,      # пауза между сканами
+	"rescan_s": 45,             # когда снимок считается старым
+	"attack_start_s": 480,      # когда начинает атаковать
+	"attack_min_nodes": 5,      # и сколько узлов для этого нужно
+	"max_attack_targets": 1,    # целей под атакой одновременно
+	"flood_hold_rate": 10,      # флуд на лежащую цель, которую уже заражают
+	"payload_hold_rate": 12,    # вирус на лежащую цель
+	"floods_per_target": 2,     # потоков флуда на одну защищённую цель
+	"attack_hops": 2,           # цель не дальше стольких хопов от своего узла
+	"hidden_percent": 25,       # как часто против защищённой цели берёт скрытый вирус вместо флуда
+	"core_pull": 6,             # тяга атаки к чужому ядру
+	"payload_rich_bank": 200,   # с какого банка бьёт вирусом напором и против защищённой цели
+	"threat_memory_s": 60,      # сколько помнит атаку по логу IDS
+}

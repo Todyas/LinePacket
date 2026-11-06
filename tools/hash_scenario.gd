@@ -13,5 +13,14 @@ func _initialize() -> void:
 	d.run(1500)
 	var e: World = Scenarios.build_stealth(781)
 	e.run(2000)
-	print("HASH ", a.state_hash(), " ", b.state_hash(), " ", c.state_hash(), " ", d.state_hash(), " ", e.state_hash())
+	# Основной тест детерминизма: матч бот против бота.
+	var f: World = MapLoader.load_file("res://maps/duel.json", 782)["world"]
+	var bots: Array[Bot] = []
+	for p in f.players.size():
+		bots.append(Bot.new(BotView.new(f, p), 782))
+	while f.tick < 6000 and f.winner < 0:
+		for bot in bots:
+			bot.act()
+		f.step()
+	print("HASH ", a.state_hash(), " ", b.state_hash(), " ", c.state_hash(), " ", d.state_hash(), " ", e.state_hash(), " ", f.state_hash())
 	quit(0)
