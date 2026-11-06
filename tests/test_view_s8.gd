@@ -233,3 +233,12 @@ func test_bot_does_not_expand_onto_enemy_half() -> void:
 	for n in w.nodes:
 		if n.owner == 1:
 			check(Knowledge.hops(w, n.id, mine_core) < Knowledge.hops(w, n.id, their_core), "%s на чужой половине" % Names.node_label(n))
+
+func test_packet_multimeshes_have_manual_cull_bounds() -> void:
+	# Без своих границ движок отсекает пакеты, когда камера уводит начало координат с экрана.
+	var pv := PacketView.new()
+	pv._ready()
+	for mm in pv._mms:
+		var box: AABB = mm.custom_aabb
+		check(box.size.x >= 20000.0 and box.has_point(Vector3(1500, 900, 0)) and box.has_point(Vector3(-500, -500, 0)), "границы мультимеша малы: %s" % str(box))
+	pv.free()

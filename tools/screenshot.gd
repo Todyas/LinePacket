@@ -34,6 +34,8 @@ func _process(_delta: float) -> bool:
 	if _scenario == "ui" and _frames == _target - 2:
 		_main.input_ctl.ring_target = 3
 		_main.ring.open(Vector2(420, 640), RingMenu.items_for(_main.world, 0, 2, 3))
+	if _scenario == "pan" and _frames > 20:
+		_main.camera.position = Vector2(800.0 + 450.0 * sin(float(_frames) * 0.05), 450.0)   # качаем камеру: пакеты не должны пропадать
 	if _scenario == "tip" and _frames == _target - 2:
 		var nd: NodeState = _main.world.nodes[_main.world.players[0].core_node]
 		var pos: Vector2 = _main.camera.get_canvas_transform() * Vector2(nd.x, nd.y)

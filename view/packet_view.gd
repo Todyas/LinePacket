@@ -8,6 +8,7 @@ const CAT_ATTACK: int = 1
 const CAT_BIG: int = 2
 const FLOATS: int = 12      # 8 на Transform2D + 4 на цвет
 const SIZES: Array[float] = [10.0, 14.0, 22.0]
+const CULL_AABB: AABB = AABB(Vector3(-20000, -20000, -1), Vector3(40000, 40000, 2))
 const LANE_OFFSET: float = 3.0   # смещение встречных направлений друг от друга
 
 var _mms: Array[MultiMesh] = []
@@ -25,6 +26,9 @@ func _ready() -> void:
 		var quad := QuadMesh.new()
 		quad.size = Vector2(SIZES[i], SIZES[i])
 		mm.mesh = quad
+		# Границы для отсечения задаём вручную: иначе движок берёт их по начальным (нулевым) экземплярам
+		# и прячет пакеты, как только камера уводит начало координат с экрана.
+		mm.custom_aabb = CULL_AABB
 		_mms.append(mm)
 		_bufs.append(PackedFloat32Array())
 		_resize(i, 512)
