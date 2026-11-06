@@ -72,7 +72,7 @@ const PACKET_SIZE: Dictionary = {
 
 ## Какие типы игрок может пускать потоком (остальные идут автоматически).
 ## Список растёт вместе со спринтами по мере появления механик.
-const PLAYER_FLOW_TYPES: Array = [PacketType.FLOOD, PacketType.INIT, PacketType.PAYLOAD, PacketType.SCAN]
+const PLAYER_FLOW_TYPES: Array = [PacketType.FLOOD, PacketType.INIT, PacketType.PAYLOAD, PacketType.PAYLOAD_HIDDEN, PacketType.SCAN]
 
 ## --- Сеть (S1) ---
 
@@ -167,7 +167,7 @@ const SOFT_DEFS: Dictionary = {
 }
 
 ## ПО, доступное игроку в текущем спринте (растёт вместе с механиками, которые ПО обслуживает).
-const PLAYER_SOFT: Array = [SoftType.FIREWALL, SoftType.ANTIVIRUS, SoftType.IDS, SoftType.STORAGE, SoftType.RELAY]
+const PLAYER_SOFT: Array = [SoftType.FIREWALL, SoftType.ANTIVIRUS, SoftType.IDS, SoftType.SNIFFER, SoftType.STORAGE, SoftType.RELAY]
 
 ## Слоты ПО на узле.
 const SOFT_SLOTS: Dictionary = {
@@ -193,7 +193,7 @@ const AGENT_QUEUE_MAX: int = 3
 ## Агент, которого выкинули или потеряли в пути, появляется на ядре через 20 секунд.
 const AGENT_RETURN_TICKS: int = 400
 
-enum TaskKind { MOVE, CHANGE_PASSWORD, SET_KEYS, INSTALL_SOFT, CLEAN_VIRUS, STEAL_KEY, DRAIN_BUFFER, ENTRENCH }
+enum TaskKind { MOVE, CHANGE_PASSWORD, SET_KEYS, INSTALL_SOFT, CLEAN_VIRUS, STEAL_KEY, DRAIN_BUFFER, ENTRENCH, BACKDOOR }
 
 const TASK_NAMES: Dictionary = {
 	TaskKind.MOVE: "Перейти",
@@ -204,6 +204,7 @@ const TASK_NAMES: Dictionary = {
 	TaskKind.STEAL_KEY: "Украсть ключ",
 	TaskKind.DRAIN_BUFFER: "Выкачать байты",
 	TaskKind.ENTRENCH: "Закрепиться",
+	TaskKind.BACKDOOR: "Поставить бэкдор",
 }
 
 ## Время (с) и цена (байты) задач без аргумента. Установка ПО берёт числа из SOFT_DEFS.
@@ -214,6 +215,7 @@ const TASK_DEFS: Dictionary = {
 	TaskKind.STEAL_KEY: {"time_s": 12, "cost": 0},
 	TaskKind.DRAIN_BUFFER: {"time_s": 0, "cost": 0},   # идёт, пока стоит агент и есть что качать
 	TaskKind.ENTRENCH: {"time_s": 6, "cost": 10},
+	TaskKind.BACKDOOR: {"time_s": 10, "cost": 30},
 	TaskKind.CLEAN_VIRUS: {"time_s": 6, "cost": 10},   # +до 14 с по степени заражения
 }
 
@@ -225,6 +227,14 @@ const LYING_OFF_PCT: int = 80
 
 ## PAYLOAD: цена одного пакета в байтах и прирост шкалы заражения (тысячные доли пункта, 100000 = 100%).
 const PAYLOAD_COST_BYTES: int = 1
+
+## Байты за один пакет потока (0 — бесплатный тип).
+static func flow_byte_cost(ptype: int) -> int:
+	if ptype == PacketType.PAYLOAD:
+		return PAYLOAD_COST_BYTES
+	if ptype == PacketType.PAYLOAD_HIDDEN:
+		return PAYLOAD_HIDDEN_COST_BYTES
+	return 0
 const INFECT_MAX: int = 100000
 const INFECT_GAIN: int = 4000
 ## Шкала заражения тает сама; антивирус сбивает её быстрее и режет прирост.
@@ -258,3 +268,30 @@ const IDS_WATCHED: Array = [PacketType.FLOOD, PacketType.PAYLOAD, PacketType.INI
 const IDS_COOLDOWN_TICKS: int = 60
 ## Данные снимка бледнеют за столько секунд (только вид).
 const SNAPSHOT_FADE_S: int = 90
+
+## --- Скрытность (S6) ---
+
+enum HiddenKind { VIRUS, BACKDOOR, SNIFFER }
+const HIDDEN_KIND_COUNT: int = 3
+const HIDDEN_NAMES: Dictionary = {
+	HiddenKind.VIRUS: "скрытый вирус",
+	HiddenKind.BACKDOOR: "бэкдор",
+	HiddenKind.SNIFFER: "сниффер",
+}
+
+## Скрытый PAYLOAD: дороже обычного и растёт медленнее; владелец шкалу не видит.
+const PAYLOAD_HIDDEN_COST_BYTES: int = 2
+const INFECT_HIDDEN_GAIN: int = 1500
+
+## Сколько секунд IDS или антивирус должны «смотреть» на машину, чтобы найти скрытое.
+const HIDDEN_DETECT_S: Dictionary = {
+	HiddenKind.VIRUS: 40,
+	HiddenKind.BACKDOOR: 60,
+	HiddenKind.SNIFFER: 30,
+}
+## Заражённая тайным вирусом машина отдаёт вору этот процент своих DATA, сниффер ворует столько же из транзита.
+const VIRUS_SKIM_PERCENT: int = 25
+const SNIFFER_STEAL_PERCENT: int = 25
+## Активация вируса: «отключить ПО» выводит ПО машины из строя на это число тиков.
+const ACTIVATE_DISABLE_SOFT_TICKS: int = 400
+enum ActivateMode { TAKEOVER, DISABLE_SOFT }

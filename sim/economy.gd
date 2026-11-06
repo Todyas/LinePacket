@@ -75,7 +75,7 @@ static func _produce_and_send_data(w: World, n: NodeState) -> void:
 	n.produce_acc += Defs.DATA_RATE * data_pct / 100
 	while n.produce_acc >= Defs.TICK_HZ:
 		n.produce_acc -= Defs.TICK_HZ
-		if n.buffer < limit:
+		if n.buffer < limit and not Stealth.skim_data(w, n):
 			n.buffer += Defs.DATA_VALUE
 	if n.buffer <= 0 or n.gw_target < 0:
 		n.send_acc = 0
@@ -131,6 +131,8 @@ static func upkeep(w: World) -> void:
 		for p in Defs.MAX_PLAYERS:
 			if n.infect[p] > 0:
 				n.infect[p] = maxi(0, n.infect[p] - inf_dec)
+			if n.virus_meter[p] > 0:
+				n.virus_meter[p] = maxi(0, n.virus_meter[p] - inf_dec)
 			if n.brute[p] > 0:
 				n.brute[p] = maxi(0, n.brute[p] - br_dec)
 	# Шкалы захвата раз в секунду.

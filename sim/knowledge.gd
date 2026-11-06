@@ -5,7 +5,7 @@ extends RefCounted
 ## Уровни: силуэт (стартовая топология), снимок (SCAN или давнее наблюдение), наблюдение (свои узлы и соседние).
 
 enum Level { SILHOUETTE, SNAPSHOT, OBSERVED }
-enum EventKind { IDS_ATTACK, NODE_CAPTURED, NODE_LOST, NODE_DOWN }
+enum EventKind { IDS_ATTACK, NODE_CAPTURED, NODE_LOST, NODE_DOWN, HIDDEN_FOUND, AGENT_SEEN }
 
 const UNKNOWN_OWNER: int = -2
 const EVENT_LIMIT: int = 60
@@ -44,7 +44,8 @@ static func update(w: World) -> void:
 		var k: Knowledge = w.know[p]
 		k.observed.fill(0)
 		for n in w.nodes:
-			if n.owner != p:
+			# Узел игрока и заражённый его тайным вирусом: видно их и соседей.
+			if n.owner != p and n.virus[p] != 1:
 				continue
 			k.observed[n.id] = 1
 			for lid in n.links:
@@ -126,6 +127,26 @@ static func age(w: World, player: int, node_id: int) -> int:
 static func link_visible(w: World, player: int, link_id: int) -> bool:
 	var k: Knowledge = _k(w, player)
 	return k != null and k.link_seen[link_id] == 1
+
+## Виден ли чужой агент игроку: свой — всегда, чужой — только если IDS игрока смотрит на этот узел.
+static func agent_visible(w: World, player: int, a: AgentState) -> bool:
+	if a.owner == player:
+		return true
+	if a.node < 0:
+		return false
+	return Stealth.ids_covers(w, player, w.nodes[a.node])
+
+## ПО узла, каким его видит игрок: чужой сниффер скрыт, пока IDS его не нашёл.
+static func soft_visible(w: World, player: int, node_id: int) -> Array[int]:
+	var out: Array[int] = []
+	var n: NodeState = w.nodes[node_id]
+	for t in n.soft:
+		if t < 0:
+			continue
+		if t == Defs.SoftType.SNIFFER and n.owner != player and n.found[NodeState.hidden_slot(Defs.HiddenKind.SNIFFER, player)] != 1:
+			continue
+		out.append(t)
+	return out
 
 static func events_of(w: World, player: int) -> Array:
 	var k: Knowledge = _k(w, player)

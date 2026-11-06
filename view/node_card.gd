@@ -56,13 +56,19 @@ static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
 		lines.append("Доступ: %s" % Names.access_mode(n.access_mode, n.key_version))
 		lines.append("Доступ имеют: %s" % Names.access_list(n.access_mask))
 		var slots: Array[String] = []
-		for t in n.soft:
-			if t >= 0:
-				slots.append("[%s]" % Defs.SOFT_NAMES[t])
-		var free: int = n.free_slots()
-		for i in free:
-			slots.append("[пусто]")
-		lines.append("ПО: %s" % " ".join(slots))
+		var shown: Array[int] = []
+		if viewer >= 0:
+			shown = Knowledge.soft_visible(w, viewer, node_id)
+		else:
+			for t in n.soft:
+				if t >= 0:
+					shown.append(t)
+		for t in shown:
+			slots.append("[%s]" % Defs.SOFT_NAMES[t])
+		if n.owner == viewer or viewer < 0:
+			for i in n.free_slots():
+				slots.append("[пусто]")
+		lines.append("ПО: %s" % (" ".join(slots) if not slots.is_empty() else "—"))
 		for p in Defs.MAX_PLAYERS:
 			if p == n.owner or (viewer >= 0 and p != viewer and n.owner != viewer):
 				continue
@@ -70,12 +76,13 @@ static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
 				lines.append("Заражение (%s): %d%%" % [Names.owner_name(p), n.infect[p] * 100 / Defs.INFECT_MAX])
 			if n.brute[p] > 0:
 				lines.append("Подбор пароля (%s): %d%%" % [Names.owner_name(p), n.brute[p] * 100 / Defs.BRUTE_MAX])
+		lines.append_array(_hidden_lines(w, n, viewer))
 		var lim: int = Economy.buffer_limit(n)
 		if lim > 0:
 			lines.append("Буфер: %d / %d" % [n.buffer, lim])
 		var here: Array[String] = []
 		for a in w.agents:
-			if a.node == node_id:
+			if a.node == node_id and (viewer < 0 or Knowledge.agent_visible(w, viewer, a)):
 				here.append("%d(И%d)" % [a.id + 1, a.owner + 1])
 		if not here.is_empty():
 			lines.append("Агенты здесь: %s" % ", ".join(here))
@@ -107,6 +114,36 @@ static func _snapshot_text(w: World, node_id: int, viewer: int) -> String:
 				soft.append("[%s]" % Defs.SOFT_NAMES[t])
 		lines.append("ПО: %s" % (" ".join(soft) if not soft.is_empty() else "нет"))
 		lines.append("Буфер: %d" % sn.buffer)
+		if sn.my_virus:
+			lines.append("Ваш скрытый вирус: ПКМ → активировать")
+		if sn.my_backdoor:
+			lines.append("Ваш бэкдор")
+		if sn.found_virus or sn.found_backdoor:
+			lines.append("Найдено скрытое: вычистите")
 		if sn.down:
 			lines.append("Лежала в момент снимка")
 	return "\n".join(lines)
+
+
+## Скрытое на узле: вор видит свои вирус и бэкдор, владелец — только найденное. Без тумана (viewer < 0) — всё.
+static func _hidden_lines(w: World, n: NodeState, viewer: int) -> Array[String]:
+	var out: Array[String] = []
+	if viewer < 0:
+		for a in Defs.MAX_PLAYERS:
+			if n.virus[a] == 1:
+				out.append("Тайный вирус (%s)" % Names.owner_name(a))
+			if n.backdoor[a] == 1:
+				out.append("Бэкдор (%s)" % Names.owner_name(a))
+		return out
+	var sn: NodeSnap = Knowledge.snap(w, viewer, n.id)
+	if sn == null:
+		return out
+	if sn.my_virus:
+		out.append("Ваш скрытый вирус: ПКМ → активировать")
+	if sn.my_backdoor:
+		out.append("Ваш бэкдор: агент войдёт без пароля")
+	if sn.found_virus:
+		out.append("НАЙДЕН чужой скрытый вирус: вычистите")
+	if sn.found_backdoor:
+		out.append("НАЙДЕН чужой бэкдор: вычистите")
+	return out

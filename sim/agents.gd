@@ -22,7 +22,7 @@ static func task_params(kind: int, arg: int, node: NodeState = null) -> Array:
 
 ## Задачи, которые выполняются на чужих машинах.
 const ENEMY_KINDS: Array = [
-	Defs.TaskKind.STEAL_KEY, Defs.TaskKind.DRAIN_BUFFER, Defs.TaskKind.ENTRENCH,
+	Defs.TaskKind.STEAL_KEY, Defs.TaskKind.DRAIN_BUFFER, Defs.TaskKind.ENTRENCH, Defs.TaskKind.BACKDOOR,
 ]
 
 ## Проверка при постановке в очередь. Доступ к чужой машине проверяется, когда агент до неё доедет.
@@ -53,7 +53,7 @@ static func applicable(a: AgentState, n: NodeState, kind: int, arg: int) -> bool
 			return mine
 		Defs.TaskKind.INSTALL_SOFT:
 			return mine and n.free_slots() > 0 and not n.has_soft(arg)
-		Defs.TaskKind.STEAL_KEY, Defs.TaskKind.DRAIN_BUFFER:
+		Defs.TaskKind.STEAL_KEY, Defs.TaskKind.DRAIN_BUFFER, Defs.TaskKind.BACKDOOR:
 			return not mine
 		Defs.TaskKind.ENTRENCH:
 			return n.prev_owner >= 0
@@ -61,7 +61,7 @@ static func applicable(a: AgentState, n: NodeState, kind: int, arg: int) -> bool
 
 ## Есть ли у игрока вход на узел: свой, по доступу или узел «лежит».
 static func can_enter(n: NodeState, player: int) -> bool:
-	return n.owner == player or n.down or (n.access_mask & (1 << player)) != 0
+	return n.owner == player or n.down or (n.access_mask & (1 << player)) != 0 or n.backdoor[player] == 1
 
 static func step(w: World) -> void:
 	for a in w.agents:
@@ -158,7 +158,9 @@ static func _complete(w: World, a: AgentState) -> void:
 			if n.owner == a.owner:
 				n.install_soft(int(head[2]))
 		Defs.TaskKind.CLEAN_VIRUS:
-			n.infect.fill(0)
+			Stealth.clean(n)
+		Defs.TaskKind.BACKDOOR:
+			n.backdoor[a.owner] = 1
 		Defs.TaskKind.STEAL_KEY:
 			n.access_mask |= 1 << a.owner
 		Defs.TaskKind.ENTRENCH:
@@ -193,6 +195,8 @@ static func on_arrived(w: World, node: NodeState, owner: int, agent_idx: int) ->
 	if node.owner >= 0 and can_enter(node, owner):
 		a.node = node.id
 		a.mode = AgentState.Mode.IDLE
+		if node.owner != owner and Stealth.ids_covers(w, node.owner, node):
+			Knowledge.log_event(w, node.owner, Knowledge.EventKind.AGENT_SEEN, node.id)
 	else:
 		send_home(w, a)
 

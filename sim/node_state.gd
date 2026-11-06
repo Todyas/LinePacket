@@ -38,6 +38,15 @@ var down: bool = false                     # перегружена и «леж�
 var infect: PackedInt32Array = PackedInt32Array()   # шкала заражения по атакующим
 var brute: PackedInt32Array = PackedInt32Array()    # шкала подбора пароля по атакующим
 var prev_owner: int = -1                   # кто владел до захвата заражением (пока не «закрепились»)
+# Скрытое (S6): по игрокам-атакующим.
+var virus: PackedInt32Array = PackedInt32Array()          # 1 — стоит тайный вирус этого игрока
+var virus_meter: PackedInt32Array = PackedInt32Array()    # шкала скрытого заражения
+var backdoor: PackedInt32Array = PackedInt32Array()       # 1 — у игрока есть бэкдор
+var skim_acc: PackedInt32Array = PackedInt32Array()       # накопитель отвода DATA вирусом
+var det_timer: PackedInt32Array = PackedInt32Array()      # тики наблюдения по [вид * MAX_PLAYERS + кто]
+var found: PackedInt32Array = PackedInt32Array()          # 1 — найдено (видит нашедший), те же индексы
+var soft_off: int = 0                      # тиков осталось, пока ПО выведено из строя активацией вируса
+var sniff_acc: int = 0
 var ids_cool: PackedInt32Array = PackedInt32Array()  # тик последней записи IDS по атакующим
 var auto_sent: int = 0                     # сколько автоматических пакетов (DATA, KEEPALIVE) отправил узел
 
@@ -46,6 +55,12 @@ func _init() -> void:
 	capture.resize(Defs.MAX_PLAYERS)
 	infect.resize(Defs.MAX_PLAYERS)
 	brute.resize(Defs.MAX_PLAYERS)
+	virus.resize(Defs.MAX_PLAYERS)
+	virus_meter.resize(Defs.MAX_PLAYERS)
+	backdoor.resize(Defs.MAX_PLAYERS)
+	skim_acc.resize(Defs.MAX_PLAYERS)
+	det_timer.resize(Defs.HIDDEN_KIND_COUNT * Defs.MAX_PLAYERS)
+	found.resize(Defs.HIDDEN_KIND_COUNT * Defs.MAX_PLAYERS)
 	ids_cool.resize(Defs.MAX_PLAYERS)
 	ids_cool.fill(-1000000)
 
@@ -72,7 +87,7 @@ func has_soft(t: int) -> bool:
 
 ## ПО работает, только пока узел не лежит.
 func soft_active(t: int) -> bool:
-	return not down and soft.has(t)
+	return not down and soft_off <= 0 and soft.has(t)
 
 func free_slots() -> int:
 	var used: int = 0
@@ -98,6 +113,19 @@ func clear_soft() -> void:
 func clear_threats() -> void:
 	infect.fill(0)
 	brute.fill(0)
+	clear_hidden()
+
+## Тайные вирусы, бэкдоры и всё, что нашли; сниффер — обычное ПО, его убирает clear_soft.
+func clear_hidden() -> void:
+	virus.fill(0)
+	virus_meter.fill(0)
+	backdoor.fill(0)
+	skim_acc.fill(0)
+	det_timer.fill(0)
+	found.fill(0)
+
+static func hidden_slot(kind: int, who: int) -> int:
+	return kind * Defs.MAX_PLAYERS + who
 
 func reset_access() -> void:
 	access_mode = Defs.AccessMode.PASSWORD_WEAK
@@ -151,5 +179,13 @@ func hash_into(h: Hasher) -> void:
 	h.add_array(infect)
 	h.add_array(brute)
 	h.add_array(ids_cool)
+	h.add_array(virus)
+	h.add_array(virus_meter)
+	h.add_array(backdoor)
+	h.add_array(skim_acc)
+	h.add_array(det_timer)
+	h.add_array(found)
+	h.add(soft_off)
+	h.add(sniff_acc)
 	h.add(prev_owner)
 	h.add(auto_sent)

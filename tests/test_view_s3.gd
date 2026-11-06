@@ -55,7 +55,8 @@ func test_ring_menu_items_own_node() -> void:
 	check(joined.contains("Файрвол"), joined)
 	check(joined.contains("Хранилище"), joined)
 	check(joined.contains("Ретранслятор"), joined)
-	check(not joined.contains("Сниффер"), "ПО, которого ещё нет в игре, в меню не показывается")
+	check(joined.contains("IDS"), joined)
+	check(joined.contains("Сниффер"), joined)
 	# Установленное ПО в меню не предлагается.
 	w.nodes[1].install_soft(Defs.SoftType.FIREWALL)
 	var items2: Array[Dictionary] = RingMenu.items_for(w, 0, 0, 1)

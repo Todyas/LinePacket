@@ -23,6 +23,7 @@ const MODE_KEYS: Dictionary = {
 	KEY_F: Defs.PacketType.FLOOD,
 	KEY_I: Defs.PacketType.INIT,
 	KEY_P: Defs.PacketType.PAYLOAD,
+	KEY_H: Defs.PacketType.PAYLOAD_HIDDEN,
 	KEY_S: Defs.PacketType.SCAN,
 }
 
@@ -137,6 +138,8 @@ func switch_side() -> void:
 func apply_item(item: Dictionary) -> void:
 	if item["kind"] == "task":
 		submit(Command.queue_task(local_player, world.tick, selected_agent, int(item["task"]), ring_target, int(item["arg"])))
+	elif item["kind"] == "activate":
+		submit(Command.activate(local_player, world.tick, ring_target, int(item["mode"])))
 	elif item["kind"] == "flow" and selected_node >= 0:
 		submit(Command.start_flow(local_player, world.tick, selected_node, ring_target, int(item["flow_type"]), flow_rate_for(int(item["flow_type"]))))
 

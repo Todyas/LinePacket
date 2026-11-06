@@ -57,8 +57,10 @@ static func color_for(kind: int) -> Color:
 	match kind:
 		Knowledge.EventKind.IDS_ATTACK:
 			return Color(1.0, 0.75, 0.3)
-		Knowledge.EventKind.NODE_LOST, Knowledge.EventKind.NODE_DOWN:
+		Knowledge.EventKind.NODE_LOST, Knowledge.EventKind.NODE_DOWN, Knowledge.EventKind.HIDDEN_FOUND:
 			return Color(1.0, 0.4, 0.35)
+		Knowledge.EventKind.AGENT_SEEN:
+			return Color(1.0, 0.75, 0.3)
 	return Color(0.6, 0.95, 0.7)
 
 static func attack_name(ptype: int) -> String:
@@ -90,4 +92,10 @@ static func line_for(w: World, e: Array) -> String:
 			return "%s потеряна %s" % [stamp, node_lbl]
 		Knowledge.EventKind.NODE_DOWN:
 			return "%s %s легла от перегрузки" % [stamp, node_lbl]
+		Knowledge.EventKind.HIDDEN_FOUND:
+			var extra: int = int(e[4])
+			var src: String = "Антивирус" if extra % 2 == 1 else "IDS"
+			return "%s [%s] найден %s на %s" % [stamp, src, Defs.HIDDEN_NAMES[extra / 2], node_lbl]
+		Knowledge.EventKind.AGENT_SEEN:
+			return "%s [IDS] чужой агент на %s" % [stamp, node_lbl]
 	return stamp

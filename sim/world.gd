@@ -35,6 +35,7 @@ var _pending: Dictionary = {}               # tick -> Array[Command]
 var applied_log: Array[Command] = []        # применённые команды по порядку (для реплея)
 var winner: int = -1                        # игрок, захвативший ядро; -1 — матч идёт
 var finished_tick: int = -1
+var delivered_sniffed: int = 0              # DATA, украденных снифферами (для проверок)
 var rejected_count: int = 0                 # отвергнутые команды (невалидные)
 
 func _init(seed_val: int = 1) -> void:
@@ -80,6 +81,8 @@ func _apply(c: Command) -> void:
 			ok = _apply_queue_task(c)
 		Command.Type.CLEAR_QUEUE:
 			ok = _apply_clear_queue(c)
+		Command.Type.ACTIVATE:
+			ok = Stealth.apply_activate(self, c.player, c.args)
 		_:
 			ok = false
 	if ok:
@@ -200,6 +203,7 @@ func state_hash() -> int:
 	h.add(next_flow_id)
 	h.add(winner)
 	h.add(finished_tick)
+	h.add(delivered_sniffed)
 	h.add(nodes.size())
 	for n in nodes:
 		n.hash_into(h)

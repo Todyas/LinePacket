@@ -17,6 +17,7 @@ static func step(w: World) -> void:
 	Agents.step(w)
 	_drain_ports(w)
 	Economy.upkeep(w)
+	Stealth.detect(w)
 	var slot: int = w.tick % Defs.LOAD_WINDOW
 	for n in w.nodes:
 		n.cpu_hist[slot] = n.cpu_used_tick
@@ -109,6 +110,9 @@ static func _arrive(w: World, node_id: int, idx: int, via_link: int, via_dir: in
 		if not n.spend_cpu(Defs.CPU_COST_TRANSIT):
 			_drop(w, idx, via_link, via_dir, World.DROP_CPU)
 			return
+		if Stealth.sniff_transit(w, n, idx):
+			pool.release(idx)    # сниффер забрал пакет: байты ушли владельцу сниффера
+			return
 		_enqueue_out(w, node_id, idx)
 
 ## Файрвол узла: чужие FLOOD и PAYLOAD проходят не чаще лимита; проверка стоит CPU.
@@ -145,13 +149,13 @@ static func _emit_flows(w: World) -> void:
 		while f.acc >= Defs.TICK_HZ:
 			f.acc -= Defs.TICK_HZ
 			var pl: PlayerState = w.players[f.owner]
-			if f.ptype == Defs.PacketType.PAYLOAD and pl.bank < Defs.PAYLOAD_COST_BYTES:
+			var cost: int = Defs.flow_byte_cost(f.ptype)
+			if pl.bank < cost:
 				continue    # PAYLOAD стоит байты: без них пакет не рождается
 			if not src.spend_cpu(Defs.CPU_COST_EMIT):
 				w.drops[World.DROP_CPU] += 1
 				continue
-			if f.ptype == Defs.PacketType.PAYLOAD:
-				pl.bank -= Defs.PAYLOAD_COST_BYTES
+			pl.bank -= cost
 			inject(w, f.src, f.dst, f.ptype, f.owner, f.id)
 		i += 1
 

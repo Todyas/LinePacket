@@ -11,5 +11,7 @@ func _initialize() -> void:
 	c.run(1500)
 	var d: World = Scenarios.build_siege(780)
 	d.run(1500)
-	print("HASH ", a.state_hash(), " ", b.state_hash(), " ", c.state_hash(), " ", d.state_hash())
+	var e: World = Scenarios.build_stealth(781)
+	e.run(2000)
+	print("HASH ", a.state_hash(), " ", b.state_hash(), " ", c.state_hash(), " ", d.state_hash(), " ", e.state_hash())
 	quit(0)

@@ -35,6 +35,8 @@ static func flow_type_name(t: int) -> String:
 			return "INIT [I]"
 		Defs.PacketType.PAYLOAD:
 			return "PAYLOAD [P]"
+		Defs.PacketType.PAYLOAD_HIDDEN:
+			return "СКРЫТЫЙ [H]"
 		Defs.PacketType.SCAN:
 			return "SCAN [S]"
 	return "?"

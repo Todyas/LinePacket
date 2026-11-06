@@ -27,7 +27,7 @@ static func items_for(w: World, player: int, selected_node: int, target: int) ->
 				continue
 			var sp: Array = Agents.task_params(Defs.TaskKind.INSTALL_SOFT, s)
 			items.append({"label": "%s (%d Б, %d с)" % [Defs.SOFT_NAMES[s], sp[1], int(sp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.INSTALL_SOFT, "arg": s})
-		if t.max_infect() > 0:
+		if t.max_infect() > 0 or Stealth.has_found_threat(t):
 			var cp: Array = Agents.task_params(Defs.TaskKind.CLEAN_VIRUS, 0, t)
 			items.append({"label": "Вычистить вирус (%d Б, %d с)" % [cp[1], (int(cp[0]) + Defs.TICK_HZ - 1) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.CLEAN_VIRUS, "arg": 0})
 		if t.prev_owner >= 0:
@@ -37,6 +37,11 @@ static func items_for(w: World, player: int, selected_node: int, target: int) ->
 		items.append({"label": "Агент сюда", "kind": "task", "task": Defs.TaskKind.MOVE, "arg": 0})
 		items.append({"label": "Украсть ключ (%d с)" % (int(Agents.task_params(Defs.TaskKind.STEAL_KEY, 0)[0]) / Defs.TICK_HZ), "kind": "task", "task": Defs.TaskKind.STEAL_KEY, "arg": 0})
 		items.append({"label": "Выкачать буфер", "kind": "task", "task": Defs.TaskKind.DRAIN_BUFFER, "arg": 0})
+		var bp: Array = Agents.task_params(Defs.TaskKind.BACKDOOR, 0)
+		items.append({"label": "Бэкдор (%d Б, %d с)" % [bp[1], int(bp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.BACKDOOR, "arg": 0})
+		if sn != null and sn.my_virus:
+			items.append({"label": "Активировать: перехват", "kind": "activate", "mode": Defs.ActivateMode.TAKEOVER})
+			items.append({"label": "Активировать: отключить ПО", "kind": "activate", "mode": Defs.ActivateMode.DISABLE_SOFT})
 		if t.prev_owner == player and t.owner != player:
 			var rp: Array = Agents.task_params(Defs.TaskKind.ENTRENCH, 0)
 			items.append({"label": "Вернуть машину (%d Б, %d с)" % [rp[1], int(rp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.ENTRENCH, "arg": 0})
@@ -47,6 +52,8 @@ static func items_for(w: World, player: int, selected_node: int, target: int) ->
 			items.append({"label": "Флуд (FLOOD)", "kind": "flow", "flow_type": Defs.PacketType.FLOOD})
 		if k_owner >= 0 and k_owner != player and t.type != Defs.NodeType.SWITCH:
 			items.append({"label": "Вирус (PAYLOAD)", "kind": "flow", "flow_type": Defs.PacketType.PAYLOAD})
+			if sn != null and not sn.my_virus:
+				items.append({"label": "Скрытый вирус (%d Б/пакет)" % Defs.PAYLOAD_HIDDEN_COST_BYTES, "kind": "flow", "flow_type": Defs.PacketType.PAYLOAD_HIDDEN})
 			if sn != null and sn.access_mode != Defs.AccessMode.KEYS and not sn.my_access:
 				items.append({"label": "Подбор пароля (INIT)", "kind": "flow", "flow_type": Defs.PacketType.INIT})
 		var hp: int = Knowledge.hops(w, selected_node, target)

@@ -69,6 +69,10 @@ static func _make_texture(shape: String) -> ImageTexture:
 			img.set_pixel(x, y, Color(1, 1, 1, 1.0 if inside else 0.0))
 	return ImageTexture.create_from_image(img)
 
+## Скрытый PAYLOAD чужого игрока не рисуется: владелец цели его не видит.
+static func _stealthy(pool: PacketPool, idx: int, viewer: int) -> bool:
+	return viewer >= 0 and pool.ptype[idx] == Defs.PacketType.PAYLOAD_HIDDEN and pool.owner[idx] != viewer
+
 ## Обновить буферы. frac — доля тика (0..1) для интерполяции между тиками.
 ## viewer >= 0: рисуются только пакеты на линках рядом с наблюдаемыми узлами этого игрока.
 func refresh(w: World, frac: float, viewer: int = -1) -> void:
@@ -85,7 +89,10 @@ func refresh(w: World, frac: float, viewer: int = -1) -> void:
 		for d in 2:
 			var q: IntQueue = l.chan[d]
 			for i in q.size():
-				need[category(pool.ptype[q.at(i) & LinkState.IDX_MASK])] += 1
+				var pi: int = q.at(i) & LinkState.IDX_MASK
+				if _stealthy(pool, pi, viewer):
+					continue
+				need[category(pool.ptype[pi])] += 1
 	for cat in 3:
 		if need[cat] > _caps[cat]:
 			var cap: int = _caps[cat]
@@ -127,6 +134,8 @@ func refresh(w: World, frac: float, viewer: int = -1) -> void:
 			for i in n:
 				var e: int = q.at(i)
 				var idx: int = e & LinkState.IDX_MASK
+				if _stealthy(pool, idx, viewer):
+					continue
 				var t: float = clampf((tf - float(e >> LinkState.IDX_BITS)) / lat, 0.0, 1.0)
 				var cat: int = category(pool.ptype[idx])
 				var k: int = counts[cat] * FLOATS

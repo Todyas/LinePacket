@@ -51,3 +51,17 @@ static func build_siege(seed_value: int) -> World:
 	w.submit(Command.queue_task(0, 300, 1, Defs.TaskKind.SET_KEYS, 2))
 	w.submit(Command.queue_task(1, 400, 0, Defs.TaskKind.STEAL_KEY, 2))
 	return w
+
+## Скрытность: скрытый вирус, IDS у защитника, бэкдор, активация и сниффер на транзите.
+static func build_stealth(seed_value: int) -> World:
+	var w: World = TestMaps.siege(seed_value)
+	w.players[0].bank = 300
+	w.players[1].bank = 400
+	w.nodes[1].install_soft(Defs.SoftType.SNIFFER)
+	w.submit(Command.queue_task(0, 5, 0, Defs.TaskKind.INSTALL_SOFT, 2, Defs.SoftType.IDS))
+	w.submit(Command.start_flow(1, 10, 3, 2, Defs.PacketType.PAYLOAD_HIDDEN, 20))
+	w.submit(Command.start_flow(1, 20, 3, 2, Defs.PacketType.SCAN, 4))
+	w.submit(Command.queue_task(1, 300, 0, Defs.TaskKind.STEAL_KEY, 2))
+	w.submit(Command.queue_task(1, 320, 1, Defs.TaskKind.BACKDOOR, 2))
+	w.submit(Command.activate(1, 1200, 2, Defs.ActivateMode.DISABLE_SOFT))
+	return w
