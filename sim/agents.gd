@@ -39,8 +39,12 @@ static func validate_task(w: World, player: int, kind: int, node: int, arg: int)
 	if not Defs.TASK_NAMES.has(kind):
 		return false
 	var n: NodeState = w.nodes[node]
-	if n.type == Defs.NodeType.SWITCH or n.owner < 0:
+	if kind == Defs.TaskKind.TAKE_ROUTER:
+		return n.type == Defs.NodeType.ROUTER and n.owner != player    # ничей или чужой маршрутизатор
+	if n.owner < 0:
 		return false
+	if kind == Defs.TaskKind.CAPTURE and n.type == Defs.NodeType.ROUTER:
+		return false    # маршрутизатор берут задачей «Взять управление»
 	if kind == Defs.TaskKind.INSTALL_SOFT and not Defs.PLAYER_SOFT.has(arg):
 		return false
 	if n.owner == player:
@@ -50,6 +54,8 @@ static func validate_task(w: World, player: int, kind: int, node: int, arg: int)
 
 ## Применима ли задача к узлу прямо сейчас (проверяется, когда агент на месте).
 static func applicable(w: World, a: AgentState, n: NodeState, kind: int, arg: int) -> bool:
+	if kind == Defs.TaskKind.TAKE_ROUTER:
+		return n.type == Defs.NodeType.ROUTER and n.owner != a.owner
 	if n.owner < 0:
 		return false
 	var mine: bool = n.owner == a.owner
@@ -85,8 +91,15 @@ static func defender_present(w: World, n: NodeState) -> bool:
 			return true
 	return false
 
-## Может ли агент прямо сейчас захватывать узел: доступ есть, агента-защитника нет.
+## Задачи, меняющие владельца узла: захват машины, шлюза и ядра и взятие маршрутизатора.
+static func is_capture_kind(kind: int) -> bool:
+	return kind == Defs.TaskKind.CAPTURE or kind == Defs.TaskKind.TAKE_ROUTER
+
+## Может ли агент прямо сейчас захватывать узел: у ничьего маршрутизатора ничего не мешает,
+## у чужого узла нужен вход и не должно быть агента хозяина.
 static func capture_possible(w: World, a: AgentState, n: NodeState) -> bool:
+	if n.owner < 0:
+		return n.type == Defs.NodeType.ROUTER
 	return n.owner >= 0 and n.owner != a.owner and can_enter(n, a.owner) and not defender_present(w, n)
 
 ## Есть ли у игрока вход на узел: свой, по доступу или узел «лежит».
@@ -109,7 +122,7 @@ static func step(w: World) -> void:
 						a.mode = AgentState.Mode.IDLE
 						_advance(w, a)
 					continue
-				if int(a.queue[0][0]) == Defs.TaskKind.CAPTURE and not capture_possible(w, a, w.nodes[a.queue[0][1]]):
+				if is_capture_kind(int(a.queue[0][0])) and not capture_possible(w, a, w.nodes[a.queue[0][1]]):
 					continue    # доступ пропал или на машине агент защитника: задача на паузе, агент стоит
 				a.work_left -= 1
 				if a.work_left <= 0:
@@ -130,7 +143,7 @@ static func _advance(w: World, a: AgentState) -> void:
 		var arg: int = head[2]
 		var tn: NodeState = w.nodes[target]
 		if a.node != target:
-			if tn.owner < 0:
+			if tn.owner < 0 and kind != Defs.TaskKind.TAKE_ROUTER:
 				a.queue.pop_front()   # узел стал нейтральным — задача пропадает
 				continue
 			var src: NodeState = w.nodes[a.node]
@@ -149,14 +162,14 @@ static func _advance(w: World, a: AgentState) -> void:
 		if kind == Defs.TaskKind.MOVE:
 			a.queue.pop_front()
 			continue
-		if kind == Defs.TaskKind.CAPTURE and not capture_possible(w, a, tn):
+		if is_capture_kind(kind) and not capture_possible(w, a, tn):
 			return                 # нет доступа или стоит агент защитника: ждём на месте
 		var params: Array = task_params(kind, arg, tn)
 		var pl: PlayerState = w.players[a.owner]
 		if pl.bank < int(params[1]):
 			return                 # без байтов задача не начинается
 		pl.bank -= int(params[1])
-		if kind == Defs.TaskKind.CAPTURE:
+		if is_capture_kind(kind) and tn.owner >= 0:
 			# Владелец узнаёт, что машину берут; с IDS ещё и чей агент.
 			var src: int = a.owner if Stealth.ids_covers(w, tn.owner, tn) else -1
 			Knowledge.log_event(w, tn.owner, Knowledge.EventKind.AGENT_CAPTURING, tn.id, -1, src)
@@ -205,6 +218,12 @@ static func _complete(w: World, a: AgentState) -> void:
 		Defs.TaskKind.CAPTURE:
 			if capture_possible(w, a, n):
 				Economy.takeover(w, n, a.owner)
+		Defs.TaskKind.TAKE_ROUTER:
+			if capture_possible(w, a, n):
+				if n.owner < 0:
+					Economy.capture_node(w, n, a.owner)
+				else:
+					Economy.takeover(w, n, a.owner)
 		Defs.TaskKind.EVICT:
 			for b in foreign_agents_on(w, n):
 				send_home(w, b)
@@ -234,10 +253,10 @@ static func on_arrived(w: World, node: NodeState, owner: int, agent_idx: int) ->
 	var a: AgentState = agent_of(w, owner, agent_idx)
 	if a.mode != AgentState.Mode.TRAVEL:
 		return
-	if node.owner >= 0 and can_enter(node, owner):
+	if (node.owner >= 0 and can_enter(node, owner)) or (node.owner < 0 and node.type == Defs.NodeType.ROUTER):
 		a.node = node.id
 		a.mode = AgentState.Mode.IDLE
-		if node.owner != owner and Stealth.ids_covers(w, node.owner, node):
+		if node.owner >= 0 and node.owner != owner and Stealth.ids_covers(w, node.owner, node):
 			Knowledge.log_event(w, node.owner, Knowledge.EventKind.AGENT_SEEN, node.id)
 	else:
 		send_home(w, a)

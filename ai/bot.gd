@@ -46,6 +46,8 @@ func act() -> void:
 	_defend_with_agents(mine)
 	_activate_viruses(mine)
 	_capture_ops()
+	_take_routers(mine)
+	_router_rules()
 	_retake_and_clean(mine)
 	_fortify(mine)
 	_expand(mine)
@@ -169,6 +171,8 @@ func _activate_viruses(_mine: Array[int]) -> void:
 ## urgent: если свободных нет, оборвать самого незанятого важным делом агента (но не захват и не защиту).
 func _give_task(kind: int, node: int, arg: int = 0, urgent: bool = false) -> bool:
 	var cost: int = int(Agents.capture_params(v.node_type(node))[1]) if kind == Defs.TaskKind.CAPTURE else int(Agents.task_params(kind, arg)[1])
+	if kind == Defs.TaskKind.CAPTURE and v.node_type(node) == Defs.NodeType.ROUTER:
+		kind = Defs.TaskKind.TAKE_ROUTER
 	if v.bank() < cost + int(prof["reserve"]):
 		return false
 	var best: int = -1
@@ -227,7 +231,7 @@ func _capture_ops() -> void:
 	var best_score: int = 1 << 20
 	for n in v.node_count():
 		var s: NodeSnap = v.snap(n)
-		if s == null or s.owner != enemy or not s.my_entry or v.node_type(n) == Defs.NodeType.SWITCH or _pending_for(n):
+		if s == null or s.owner != enemy or not s.my_entry or _pending_for(n):
 			continue
 		if _skipped(n) or v.level(n) == Knowledge.Level.SILHOUETTE:
 			continue
@@ -239,6 +243,39 @@ func _capture_ops() -> void:
 			best = n
 	if best >= 0 and _give_task(Defs.TaskKind.CAPTURE, best, 0, true):
 		_skip_until[best] = v.tick() + int(prof["capture_retry_s"]) * Defs.TICK_HZ
+
+## Ничьи маршрутизаторы своей половины карты берёт агент: чем ближе к нашему ядру, тем раньше.
+func _take_routers(mine: Array[int]) -> void:
+	var owned: int = 0
+	for n in mine:
+		if v.node_type(n) == Defs.NodeType.ROUTER:
+			owned += 1
+	if owned >= int(prof["max_routers"]):
+		return
+	var best: int = -1
+	var best_d: int = 1 << 20
+	for n in v.node_count():
+		if v.node_type(n) != Defs.NodeType.ROUTER or v.owner_of(n) != Defs.NEUTRAL or _pending_for(n) or _skipped(n):
+			continue
+		if _dist_to_my_core[n] + int(prof["expand_enemy_gap"]) > _dist_to_enemy_core[n]:
+			continue    # чужую половину не трогаем
+		if _dist_to_my_core[n] < best_d:
+			best_d = _dist_to_my_core[n]
+			best = n
+	if best >= 0 and _give_task(Defs.TaskKind.TAKE_ROUTER, best):
+		_skip_until[best] = v.tick() + int(prof["capture_retry_s"]) * Defs.TICK_HZ
+
+## Правило своих маршрутизаторов: на передовой закрыты для чужого транзита, в тылу открыты.
+func _router_rules() -> void:
+	for n in v.my_nodes():
+		if v.node_type(n) != Defs.NodeType.ROUTER:
+			continue
+		var info: Dictionary = v.own(n)
+		if info.is_empty():
+			continue
+		var want_open: bool = _dist_to_my_core[n] + int(prof["router_close_gap"]) < _dist_to_enemy_core[n]
+		if bool(info["router_open"]) != want_open:
+			v.submit(Command.set_router_rule(me, v.tick(), n, want_open))
 
 ## Чужой агент берёт нашу машину: ближайший свободный агент едет и выгоняет его.
 func _defend_with_agents(mine: Array[int]) -> void:
@@ -415,7 +452,7 @@ func _attack(mine: Array[int]) -> void:
 	var best: int = -1
 	var best_score: int = 1 << 20
 	for n in v.node_count():
-		if v.owner_of(n) != enemy or v.node_type(n) == Defs.NodeType.SWITCH or _skipped(n):
+		if v.owner_of(n) != enemy or v.node_type(n) == Defs.NodeType.ROUTER or _skipped(n):
 			continue
 		var busy: bool = targets.has(n)
 		if not busy and targets.size() >= int(prof["max_attack_targets"]):

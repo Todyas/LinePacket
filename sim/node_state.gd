@@ -50,6 +50,8 @@ var soft_off: int = 0                      # тиков осталось, пок
 var sniff_acc: int = 0
 var ids_cool: PackedInt32Array = PackedInt32Array()  # тик последней записи IDS по атакующим
 var auto_sent: int = 0                     # сколько автоматических пакетов (DATA, KEEPALIVE) отправил узел
+# Маршрутизатор (S12): пускает ли чужой транзит. Закрытый режет чужие пакеты и агентов, идущих через него.
+var router_open: bool = true
 # Роль (S9).
 var role: int = Defs.Role.WORK
 var role_target: int = -1                  # цель боевой роли
@@ -70,6 +72,10 @@ func _init() -> void:
 	door.resize(Defs.MAX_PLAYERS)
 	ids_cool.resize(Defs.MAX_PLAYERS)
 	ids_cool.fill(-1000000)
+
+## Закрыт ли узел для транзита игрока p (знание о правиле берётся отдельно, см. Routing).
+func blocks_transit_of(p: int) -> bool:
+	return type == Defs.NodeType.ROUTER and owner >= 0 and owner != p and not router_open
 
 func reset_role() -> void:
 	role = Defs.Role.WORK
@@ -218,6 +224,7 @@ func hash_into(h: Hasher) -> void:
 	h.add(sniff_acc)
 	h.add(prev_owner)
 	h.add(auto_sent)
+	h.add(1 if router_open else 0)
 	h.add(role)
 	h.add(role_target)
 	h.add(role_acc)

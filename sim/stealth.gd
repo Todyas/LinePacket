@@ -14,7 +14,7 @@ static func ids_covers(w: World, player: int, node: NodeState) -> bool:
 
 ## Скрытый PAYLOAD дошёл до чужой машины: шкала растёт тайно; на 100% вор получает вирус без смены владельца.
 static func on_payload_hidden(w: World, node: NodeState, attacker: int) -> void:
-	if node.owner < 0 or node.owner == attacker or node.type == Defs.NodeType.SWITCH:
+	if node.owner < 0 or node.owner == attacker:
 		return
 	if node.virus[attacker] == 1:
 		return

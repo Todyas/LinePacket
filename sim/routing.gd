@@ -18,20 +18,35 @@ static func compute(w: World) -> void:
 	w.routes.clear()
 	w.route_dist.clear()
 	for dst in n:
-		var res: Array = _from_dst(w, dst, n, null)
+		var res: Array = _from_dst(w, dst, n, null, null)
 		w.routes.append(res[0])
 		w.route_dist.append(res[1])
 	w.proutes.clear()
 	for p in w.players.size():
 		var table: Array[PackedInt32Array] = []
 		var seen: Variant = w.know[p].link_seen if p < w.know.size() else null
+		var blocked: PackedByteArray = _known_closed(w, p, n)
 		for dst in n:
-			table.append(_from_dst(w, dst, n, seen)[0])
+			table.append(_from_dst(w, dst, n, seen, blocked)[0])
 		w.proutes.append(table)
 	w.routes_dirty = false
 
+## Маршрутизаторы, которые игрок p знает как закрытые чужие: транзит через них он не планирует.
+static func _known_closed(w: World, p: int, n: int) -> PackedByteArray:
+	var out := PackedByteArray()
+	out.resize(n)
+	if p >= w.know.size():
+		return out
+	for node in w.nodes:
+		if node.type != Defs.NodeType.ROUTER:
+			continue
+		var s: NodeSnap = w.know[p].snaps[node.id]
+		if s != null and s.owner >= 0 and s.owner != p and not s.router_open:
+			out[node.id] = 1
+	return out
+
 ## Возвращает [next: PackedInt32Array, dist: PackedInt64Array]. dist[u] — цена пути из u в dst.
-static func _from_dst(w: World, dst: int, n: int, seen: Variant) -> Array:
+static func _from_dst(w: World, dst: int, n: int, seen: Variant, blocked: Variant) -> Array:
 	var dist := PackedInt64Array()
 	dist.resize(n)
 	dist.fill(INF)
@@ -51,6 +66,8 @@ static func _from_dst(w: World, dst: int, n: int, seen: Variant) -> Array:
 		if v < 0:
 			break
 		settled[v] = 1
+		if blocked != null and (blocked as PackedByteArray)[v] == 1 and v != dst:
+			continue    # закрытый маршрутизатор: через него не ходим, но дойти до него самого можно
 		for lid in w.nodes[v].links:
 			var l: LinkState = w.links[lid]
 			var u: int = l.other(v)

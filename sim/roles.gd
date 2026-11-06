@@ -22,16 +22,16 @@ static func target_ok(w: World, n: NodeState, role: int, target: int) -> bool:
 		Defs.Role.CAPTURE:
 			if t.owner == Defs.NEUTRAL:
 				return Defs.INIT_NEEDED.has(t.type)
-			if t.owner == me or t.type == Defs.NodeType.SWITCH:
+			if t.owner == me:
 				return false
 			# На чужой машине INIT подбирает пароль: пока нет доступа и пароль подбираем.
 			return (t.access_mask & (1 << me)) == 0 and int(Defs.BRUTE_GAIN[t.access_mode]) > 0
 		Defs.Role.PRESSURE:
-			return t.owner >= 0 and t.owner != me and t.type != Defs.NodeType.SWITCH
+			return t.owner >= 0 and t.owner != me
 		Defs.Role.INFECT:
-			return t.owner >= 0 and t.owner != me and t.type != Defs.NodeType.SWITCH and not t.infected_by(me)
+			return t.owner >= 0 and t.owner != me and not t.infected_by(me)
 		Defs.Role.INFECT_HIDDEN:
-			return t.owner >= 0 and t.owner != me and t.type != Defs.NodeType.SWITCH and t.virus[me] != 1
+			return t.owner >= 0 and t.owner != me and t.virus[me] != 1
 	return false
 
 ## Команда SET_ROLE: [узел, роль, цель].

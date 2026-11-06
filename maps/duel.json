@@ -32,7 +32,7 @@
   },
   {
    "id": 4,
-   "type": "switch",
+   "type": "router",
    "x": 400,
    "y": 450,
    "owner": -1
@@ -102,7 +102,7 @@
   },
   {
    "id": 14,
-   "type": "switch",
+   "type": "router",
    "x": 1200,
    "y": 450,
    "owner": -1
@@ -158,14 +158,14 @@
   },
   {
    "id": 22,
-   "type": "switch",
+   "type": "router",
    "x": 800,
    "y": 370,
    "owner": -1
   },
   {
    "id": 23,
-   "type": "switch",
+   "type": "router",
    "x": 800,
    "y": 530,
    "owner": -1

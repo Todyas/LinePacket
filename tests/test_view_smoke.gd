@@ -18,7 +18,7 @@ func test_shapes_by_type() -> void:
 	var g := GraphView.new()
 	check_eq(g.shape_points(Defs.NodeType.CORE, Vector2.ZERO, 10.0).size(), 6)
 	check_eq(g.shape_points(Defs.NodeType.GATEWAY, Vector2.ZERO, 10.0).size(), 4)
-	check_eq(g.shape_points(Defs.NodeType.SWITCH, Vector2.ZERO, 10.0).size(), 4)
+	check_eq(g.shape_points(Defs.NodeType.ROUTER, Vector2.ZERO, 10.0).size(), 4)
 	check(g.shape_points(Defs.NodeType.MACHINE, Vector2.ZERO, 10.0).size() > 8)
 	g.free()
 

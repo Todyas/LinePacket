@@ -75,7 +75,7 @@ static func eco_fan(machines: int, gateway_owner: int = 0, seed_value: int = 1) 
 	var nodes: Array = [
 		node(0, "core", 0, 0, 0),
 		node(1, "gateway", 200, 0, gateway_owner),
-		node(2, "switch", 100, 150),
+		node(2, "router", 100, 150),
 		node(3, "core", 3000, 0, 1),
 	]
 	var links: Array = [link(0, 1, "optic"), link(2, 1, "optic"), link(0, 2, "optic"), link(1, 3, "optic")]
@@ -85,7 +85,7 @@ static func eco_fan(machines: int, gateway_owner: int = 0, seed_value: int = 1) 
 		nodes.append(node(id, "machine", 60 + i * 20, 300, 0))
 		links.append(link(id, 2 if i < 5 or machines <= 5 else second_switch, "optic"))
 	if machines > 5:
-		nodes.append(node(second_switch, "switch", 300, 150))
+		nodes.append(node(second_switch, "router", 300, 150))
 		links.append(link(second_switch, 1, "optic"))
 		links.append(link(second_switch, 0, "optic"))
 	return build({"name": "eco", "players": 2, "nodes": nodes, "links": links}, seed_value)

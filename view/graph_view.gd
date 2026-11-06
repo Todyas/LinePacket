@@ -147,7 +147,7 @@ func shape_points(type: int, center: Vector2, r: float) -> PackedVector2Array:
 			pts.append(center + Vector2(r * 1.3, 0))
 			pts.append(center + Vector2(0, r * 1.3))
 			pts.append(center + Vector2(-r * 1.3, 0))
-		Defs.NodeType.SWITCH:   # квадрат
+		Defs.NodeType.ROUTER:   # квадрат
 			pts.append(center + Vector2(-r, -r))
 			pts.append(center + Vector2(r, -r))
 			pts.append(center + Vector2(r, r))
@@ -206,6 +206,12 @@ func _draw_node(n: NodeState, font: Font) -> void:
 			var d: float = NODE_RADIUS * 0.7
 			draw_line(c + Vector2(-d, -d), c + Vector2(d, d), Palette.OVERLOAD, 3.0, true)
 			draw_line(c + Vector2(-d, d), c + Vector2(d, -d), Palette.OVERLOAD, 3.0, true)
+	if n.type == Defs.NodeType.ROUTER and v_owner >= 0 and lvl != Knowledge.Level.SILHOUETTE:
+		var r_open: bool = n.router_open if live else Knowledge.snap(world, viewer, n.id).router_open
+		if not r_open:
+			var d2: float = NODE_RADIUS * 0.8    # закрытый маршрутизатор: перечёркнутый квадрат
+			draw_line(c + Vector2(-d2, -d2), c + Vector2(d2, d2), Color(Palette.of_owner(v_owner), alpha), 3.0, true)
+			draw_line(c + Vector2(-d2, d2), c + Vector2(d2, -d2), Color(Palette.of_owner(v_owner), alpha), 3.0, true)
 	if n.id == selected_node or selection.has(n.id):
 		draw_arc(c, NODE_RADIUS + 8.0, 0.0, TAU, 48, Color(1, 1, 1, 0.85), 2.0, true)
 	if live and n.reconf > 0 and (viewer < 0 or n.owner == viewer):
@@ -233,7 +239,7 @@ func _draw_attack_meters(n: NodeState, c: Vector2) -> void:
 			draw_arc(c, NODE_RADIUS + 13.0, -PI / 2.0, -PI / 2.0 + TAU * g, 40, Color(Palette.of_owner(p), 0.7), 2.0, true)
 	# Захват агентом: самая внешняя дуга цветом захватчика; виден хозяину узла и самому захватчику.
 	for a in world.agents:
-		if a.node != n.id or a.owner == n.owner or a.mode != AgentState.Mode.WORK or int(a.queue[0][0]) != Defs.TaskKind.CAPTURE:
+		if a.node != n.id or a.owner == n.owner or a.mode != AgentState.Mode.WORK or not Agents.is_capture_kind(int(a.queue[0][0])):
 			continue
 		if viewer >= 0 and viewer != n.owner and viewer != a.owner:
 			continue

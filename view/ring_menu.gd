@@ -41,8 +41,6 @@ static func items_for(w: World, player: int, selected_node: int, target: int) ->
 
 static func _info_item(w: World, player: int, target: int) -> Dictionary:
 	var t: NodeState = w.nodes[target]
-	if t.type == Defs.NodeType.SWITCH:
-		return {"label": "Свич: действий нет", "kind": "info", "hint": "Свич ничей, только пересылает пакеты."}
 	if Knowledge.owner_of(w, player, target) == Knowledge.UNKNOWN_OWNER:
 		return {"label": "Нет данных: нужен дозор", "kind": "info", "hint": "Узел вне видимости. Дозор (T) обновляет снимки в радиусе %d хопов от машины." % Defs.WATCH_RADIUS}
 	return {"label": "Действий нет", "kind": "info", "hint": "Для этого узла сейчас нечего делать."}
@@ -60,7 +58,12 @@ static func _collect(w: World, player: int, selected_node: int, target: int) -> 
 			items.append({"label": "Роль: Работа", "kind": "own_role", "role": Defs.Role.WORK})
 		if t.role != Defs.Role.WATCH:
 			items.append({"label": "Роль: Дозор", "kind": "own_role", "role": Defs.Role.WATCH})
-	if t.owner == player and t.type != Defs.NodeType.SWITCH:
+	if t.owner == player and t.type == Defs.NodeType.ROUTER:
+		if t.router_open:
+			items.append({"label": "Закрыть транзит чужим", "kind": "router_rule", "open": false})
+		else:
+			items.append({"label": "Открыть транзит", "kind": "router_rule", "open": true})
+	if t.owner == player:
 		items.append({"label": "Агент сюда", "kind": "task", "task": Defs.TaskKind.MOVE, "arg": 0})
 		var pw: Array = Agents.task_params(Defs.TaskKind.CHANGE_PASSWORD, 0)
 		items.append({"label": "Сменить пароль (%d Б, %d с)" % [pw[1], int(pw[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.CHANGE_PASSWORD, "arg": 0})
@@ -78,22 +81,29 @@ static func _collect(w: World, player: int, selected_node: int, target: int) -> 
 		if t.prev_owner >= 0:
 			var ep: Array = Agents.task_params(Defs.TaskKind.ENTRENCH, 0)
 			items.append({"label": "Закрепиться (%d Б, %d с)" % [ep[1], int(ep[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.ENTRENCH, "arg": 0})
-	elif k_owner >= 0 and t.type != Defs.NodeType.SWITCH:
+	elif k_owner >= 0:
 		items.append({"label": "Агент сюда", "kind": "task", "task": Defs.TaskKind.MOVE, "arg": 0})
 		items.append({"label": "Украсть ключ (%d с)" % (int(Agents.task_params(Defs.TaskKind.STEAL_KEY, 0)[0]) / Defs.TICK_HZ), "kind": "task", "task": Defs.TaskKind.STEAL_KEY, "arg": 0})
-		items.append({"label": "Выкачать буфер", "kind": "task", "task": Defs.TaskKind.DRAIN_BUFFER, "arg": 0})
+		if t.type != Defs.NodeType.ROUTER:
+			items.append({"label": "Выкачать буфер", "kind": "task", "task": Defs.TaskKind.DRAIN_BUFFER, "arg": 0})
 		var bp: Array = Agents.task_params(Defs.TaskKind.BACKDOOR, 0)
 		items.append({"label": "Бэкдор (%d Б, %d с)" % [bp[1], int(bp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.BACKDOOR, "arg": 0})
 		if sn != null and sn.my_virus:
 			items.append({"label": "Активировать: открыть дверь", "kind": "activate", "mode": Defs.ActivateMode.OPEN_DOOR})
 		if sn != null and sn.my_entry:
-			var cp: Array = Agents.task_params(Defs.TaskKind.CAPTURE, 0, t)
-			items.append({"label": "Захватить (%d Б, %d с)" % [cp[1], int(cp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.CAPTURE, "arg": 0})
+			var tk: int = Defs.TaskKind.TAKE_ROUTER if t.type == Defs.NodeType.ROUTER else Defs.TaskKind.CAPTURE
+			var cp: Array = Agents.task_params(tk, 0, t)
+			var verb: String = "Взять управление" if tk == Defs.TaskKind.TAKE_ROUTER else "Захватить"
+			items.append({"label": "%s (%d Б, %d с)" % [verb, cp[1], int(cp[0]) / Defs.TICK_HZ], "kind": "task", "task": tk, "arg": 0})
+	elif k_owner == Defs.NEUTRAL and t.type == Defs.NodeType.ROUTER:
+		var np: Array = Agents.task_params(Defs.TaskKind.TAKE_ROUTER, 0)
+		items.append({"label": "Агент сюда", "kind": "task", "task": Defs.TaskKind.MOVE, "arg": 0})
+		items.append({"label": "Взять управление (%d Б, %d с)" % [np[1], int(np[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.TAKE_ROUTER, "arg": 0})
 	# Боевые роли: selected_node здесь — машина-исполнитель (её выбирает source_for).
 	if selected_node >= 0 and selected_node != target and _can_serve(w, player, selected_node, target):
 		if k_owner == Defs.NEUTRAL and Defs.INIT_NEEDED.has(t.type):
 			items.append({"label": "Захват (INIT)", "kind": "role", "role": Defs.Role.CAPTURE})
-		if k_owner >= 0 and k_owner != player and t.type != Defs.NodeType.SWITCH:
+		if k_owner >= 0 and k_owner != player:
 			items.append({"label": "Давление (FLOOD)", "kind": "role", "role": Defs.Role.PRESSURE})
 			items.append({"label": "Заражение (PAYLOAD)", "kind": "role", "role": Defs.Role.INFECT})
 			if sn != null and not sn.my_virus:

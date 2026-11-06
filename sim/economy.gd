@@ -10,7 +10,7 @@ static func refresh_targets(w: World) -> void:
 	if w.route_dist.size() != w.nodes.size():
 		return
 	for n in w.nodes:
-		if n.owner < 0 or n.type == Defs.NodeType.SWITCH:
+		if n.owner < 0:
 			continue
 		var core: int = w.players[n.owner].core_node
 		if n.type != Defs.NodeType.CORE:
@@ -27,8 +27,6 @@ static func _pick_supplier(w: World, m: NodeState, core: int) -> int:
 			continue
 		if cand.type == Defs.NodeType.CORE:
 			pass
-		elif cand.type == Defs.NodeType.SWITCH:
-			continue
 		else:
 			if cand.control < Defs.SUPPLY_MIN_CONTROL or cand.down:
 				continue
@@ -183,7 +181,7 @@ static func on_keepalive(_w: World, node: NodeState, owner: int) -> void:
 
 ## INIT дошёл до нейтрала: заполняет шкалу атакующего и сбивает шкалы остальных.
 static func on_init(w: World, node: NodeState, owner: int) -> void:
-	if node.owner >= 0 and node.owner != owner and node.type != Defs.NodeType.SWITCH:
+	if node.owner >= 0 and node.owner != owner:
 		_brute_force(w, node, owner)
 		return
 	if node.owner != Defs.NEUTRAL or not Defs.INIT_NEEDED.has(node.type):
@@ -224,7 +222,7 @@ static func _brute_force(_w: World, node: NodeState, attacker: int) -> void:
 
 ## PAYLOAD дошёл до чужой машины: заполняет шкалу заражения атакующего.
 static func on_payload(w: World, node: NodeState, attacker: int) -> void:
-	if node.owner < 0 or node.owner == attacker or node.type == Defs.NodeType.SWITCH:
+	if node.owner < 0 or node.owner == attacker:
 		return
 	var gain: int = Defs.INFECT_GAIN
 	if node.soft_active(Defs.SoftType.ANTIVIRUS):

@@ -15,7 +15,7 @@ func test_duel_composition() -> void:
 		counts[n.type] = int(counts.get(n.type, 0)) + 1
 	check_eq(counts[Defs.NodeType.CORE], 2)
 	check_eq(counts[Defs.NodeType.GATEWAY], 4)
-	check_eq(counts[Defs.NodeType.SWITCH], 4)
+	check_eq(counts[Defs.NodeType.ROUTER], 4)
 	check_eq(counts[Defs.NodeType.MACHINE], 14)
 
 func test_duel_start_ownership() -> void:

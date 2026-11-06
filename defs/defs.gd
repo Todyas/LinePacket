@@ -6,13 +6,13 @@ const TICK_HZ: int = 20
 const TICK_MS: int = 50
 
 ## Типы узлов (значения enum не менять: они попадают в хеш и реплеи).
-enum NodeType { CORE, MACHINE, GATEWAY, SWITCH }
+enum NodeType { CORE, MACHINE, GATEWAY, ROUTER }
 
 const NODE_TYPE_NAMES: Dictionary = {
 	"core": NodeType.CORE,
 	"machine": NodeType.MACHINE,
 	"gateway": NodeType.GATEWAY,
-	"switch": NodeType.SWITCH,
+	"router": NodeType.ROUTER,
 }
 
 ## Параметры типов узлов.
@@ -22,7 +22,7 @@ const NODE_DEFS: Dictionary = {
 	NodeType.CORE: {"cpu": 60, "ports": 6, "can_own": true},
 	NodeType.MACHINE: {"cpu": 40, "ports": 4, "can_own": true},
 	NodeType.GATEWAY: {"cpu": 80, "ports": 5, "can_own": true},
-	NodeType.SWITCH: {"cpu": 200, "ports": 8, "can_own": false},
+	NodeType.ROUTER: {"cpu": 200, "ports": 8, "can_own": true},
 }
 
 ## Типы линков.
@@ -115,7 +115,7 @@ const BUFFER_LIMIT: Dictionary = {
 	NodeType.CORE: 100,
 	NodeType.MACHINE: 60,
 	NodeType.GATEWAY: 0,
-	NodeType.SWITCH: 0,
+	NodeType.ROUTER: 0,
 }
 ## Потолок шлюза: пакетов DATA в секунду, которые он принимает.
 const GATEWAY_CAP_PER_S: int = 10
@@ -163,7 +163,7 @@ const SOFT_SLOTS: Dictionary = {
 	NodeType.CORE: 3,
 	NodeType.MACHINE: 2,
 	NodeType.GATEWAY: 2,
-	NodeType.SWITCH: 0,
+	NodeType.ROUTER: 1,
 }
 const MAX_SOFT_SLOTS: int = 3
 
@@ -183,7 +183,7 @@ const AGENT_QUEUE_MAX: int = 3
 ## Агент, которого выкинули или потеряли в пути, появляется на ядре через 20 секунд.
 const AGENT_RETURN_TICKS: int = 400
 
-enum TaskKind { MOVE, CHANGE_PASSWORD, SET_KEYS, INSTALL_SOFT, CLEAN_VIRUS, STEAL_KEY, DRAIN_BUFFER, ENTRENCH, BACKDOOR, CAPTURE, EVICT }
+enum TaskKind { MOVE, CHANGE_PASSWORD, SET_KEYS, INSTALL_SOFT, CLEAN_VIRUS, STEAL_KEY, DRAIN_BUFFER, ENTRENCH, BACKDOOR, CAPTURE, EVICT, TAKE_ROUTER }
 
 const TASK_NAMES: Dictionary = {
 	TaskKind.MOVE: "Перейти",
@@ -197,6 +197,7 @@ const TASK_NAMES: Dictionary = {
 	TaskKind.BACKDOOR: "Поставить бэкдор",
 	TaskKind.CAPTURE: "Захватить",
 	TaskKind.EVICT: "Выгнать",
+	TaskKind.TAKE_ROUTER: "Взять управление",
 }
 
 ## Время (с) и цена (байты) задач без аргумента. Установка ПО берёт числа из SOFT_DEFS.
@@ -211,6 +212,7 @@ const TASK_DEFS: Dictionary = {
 	TaskKind.CLEAN_VIRUS: {"time_s": 6, "cost": 10},   # +до 14 с по степени заражения
 	TaskKind.CAPTURE: {"time_s": 10, "cost": 20},      # числа машины; по типу узла см. CAPTURE_DEFS
 	TaskKind.EVICT: {"time_s": 5, "cost": 0},
+	TaskKind.TAKE_ROUTER: {"time_s": 15, "cost": 30},   # нейтральный или чужой маршрутизатор
 }
 
 ## Захват агентом: время (с) и цена (байты) по типу узла. Остальные типы берут числа машины.
@@ -361,6 +363,8 @@ const BOT_PROFILE: Dictionary = {
 	"hidden_percent": 25,       # шанс тайного заражения при деньгах
 	"payload_rich_bank": 200,   # сколько байт считается «богатым» банком
 	"core_pull": 10,            # тяга атаки к чужому ядру
+	"max_routers": 3,           # маршрутизаторов под управлением одновременно
+	"router_close_gap": 1,      # маршрутизатор закрывается, когда он не ближе к своему ядру, чем к чужому, на столько хопов
 	"capture_retry_s": 40,      # сколько не повторяет захват той же машины, если агент не справился
 	"alarm_memory_s": 40,       # сколько после тревоги «агент берёт машину» посылает защитника
 	"threat_memory_s": 60,      # сколько помнит атаку по логу IDS

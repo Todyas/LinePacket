@@ -267,6 +267,8 @@ func apply_item(item: Dictionary) -> void:
 		else:
 			group.append(ring_source)
 		order_role(group, int(item["role"]), ring_target)
+	elif item["kind"] == "router_rule":
+		submit(Command.set_router_rule(local_player, world.tick, ring_target, bool(item["open"])))
 	elif item["kind"] == "own_role":
 		order_role(_group_for(ring_target), int(item["role"]), -1)
 

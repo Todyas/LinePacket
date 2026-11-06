@@ -10,8 +10,8 @@ static func node_type(t: int) -> String:
 			return "Машина"
 		Defs.NodeType.GATEWAY:
 			return "Шлюз"
-		Defs.NodeType.SWITCH:
-			return "Свич"
+		Defs.NodeType.ROUTER:
+			return "Маршрутизатор"
 	return "?"
 
 static func node_label(n: NodeState) -> String:
@@ -23,8 +23,8 @@ static func node_label(n: NodeState) -> String:
 			prefix = "M"
 		Defs.NodeType.GATEWAY:
 			prefix = "G"
-		Defs.NodeType.SWITCH:
-			prefix = "S"
+		Defs.NodeType.ROUTER:
+			prefix = "R"
 	return "%s%d" % [prefix, n.id]
 
 static func owner_name(owner: int) -> String:

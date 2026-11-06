@@ -56,6 +56,8 @@ static func task(kind: int, arg: int = 0) -> String:
 			return "Закрепиться: на своей отбитой машине чужие доступы и ПО вылетают, ставится сильный пароль."
 		Defs.TaskKind.CAPTURE:
 			return "Захватить: агент меняет владельца машины. Нужен доступ (пароль, ключ, бэкдор, заражение 100%, открытая дверь или машина лежит). Если на машине агент хозяина или доступ пропал, задача стоит. Ядро берёт 40 с и ведёт к победе."
+		Defs.TaskKind.TAKE_ROUTER:
+			return "Взять управление: агент забирает ничей маршрутизатор; у чужого нужен вход, как при захвате машины. Хозяин задаёт правило: пускать чужой транзит или нет."
 		Defs.TaskKind.EVICT:
 			return "Выгнать: чужие агенты на вашей машине уезжают на ядро (20 с). Пока ваш агент стоит на машине, её не захватить."
 		Defs.TaskKind.BACKDOOR:
@@ -71,6 +73,10 @@ static func ring_item(item: Dictionary) -> String:
 			return task(int(item["task"]), int(item.get("arg", 0)))
 		"role", "own_role":
 			return role(int(item["role"]))
+		"router_rule":
+			if bool(item["open"]):
+				return "Открыть: чужие пакеты и агенты снова идут через этот маршрутизатор."
+			return "Закрыть: чужие пакеты и агенты через этот маршрутизатор не проходят (видимый дроп), им придётся идти в обход. Свои идут как обычно."
 		"activate":
 			return "Открыть дверь: на %d с ПО машины выключено, и ваш агент входит и захватывает без подбора. Вирус расходуется." % (Defs.DOOR_TICKS / Defs.TICK_HZ)
 	return ""
@@ -91,8 +97,8 @@ static func node(w: World, viewer: int, node_id: int) -> String:
 			lines.append("Шлюз: сюда приходят DATA, это доход. Пропускает до %d DATA/с." % Defs.GATEWAY_CAP_PER_S)
 		Defs.NodeType.MACHINE:
 			lines.append("Машина: производит DATA и KEEPALIVE.")
-		Defs.NodeType.SWITCH:
-			lines.append("Свич: ничей, только пересылает пакеты.")
+		Defs.NodeType.ROUTER:
+			lines.append("Маршрутизатор: сам не шлёт и не зарабатывает, весь транзит подсети идёт через него. Агент берёт его под управление (15 с); владелец решает, пускать ли чужой транзит.")
 	var rl: String = role_line(w, viewer, node_id)
 	if rl != "":
 		lines.append(rl)

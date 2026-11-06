@@ -13,6 +13,7 @@ var role: int = Defs.Role.WORK
 var role_target: int = -1
 var my_access: bool = false      # был ли у игрока доступ (по его же ключам) на момент снимка
 ## Скрытое: только то, что игрок вправе знать (свой вирус и бэкдор, найденное у себя, найденный сниффер).
+var router_open: bool = true     # правило маршрутизатора на момент снимка
 var my_virus: bool = false
 var my_backdoor: bool = false
 var my_entry: bool = false       # есть ли у игрока вход на узел для агента: доступ, бэкдор, заражение, дверь или узел лежит
@@ -36,6 +37,7 @@ static func capture(n: NodeState, player: int, at_tick: int) -> NodeSnap:
 	s.buffer = n.buffer
 	s.down = n.down
 	s.role = n.role
+	s.router_open = n.router_open
 	s.role_target = n.role_target
 	s.my_access = (n.access_mask & (1 << player)) != 0
 	s.my_virus = n.virus[player] == 1
@@ -61,6 +63,7 @@ func hash_into(h: Hasher) -> void:
 	h.add_array(soft)
 	h.add(buffer)
 	h.add(1 if down else 0)
+	h.add(1 if router_open else 0)
 	h.add(role)
 	h.add(role_target)
 	h.add(1 if my_access else 0)

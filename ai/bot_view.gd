@@ -83,7 +83,7 @@ func own(n: int) -> Dictionary:
 		"control": s.control, "cpu_pct": s.cpu_load_pct(), "soft": Array(s.soft), "free_slots": s.free_slots(),
 		"access_mode": s.access_mode, "buffer": s.buffer, "down": s.down, "infect": s.max_infect(),
 		"prev_owner": s.prev_owner, "has_found_threat": Stealth.has_found_threat(s),
-		"role": s.role, "role_target": s.role_target, "reconf": s.reconf,
+		"role": s.role, "role_target": s.role_target, "reconf": s.reconf, "router_open": s.router_open,
 	}
 
 # --- Своё состояние ---

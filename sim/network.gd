@@ -21,7 +21,7 @@ static func step(w: World) -> void:
 	var slot: int = w.tick % Defs.LOAD_WINDOW
 	for n in w.nodes:
 		n.cpu_hist[slot] = n.cpu_used_tick
-		if n.owner >= 0 and n.type != Defs.NodeType.SWITCH:
+		if n.owner >= 0:
 			var load_pct: int = n.cpu_load_pct()
 			if not n.down and load_pct >= Defs.LYING_ON_PCT:
 				n.down = true
@@ -107,6 +107,9 @@ static func _arrive(w: World, node_id: int, idx: int, via_link: int, via_dir: in
 		PacketEffects.deliver(w, n, idx)
 		pool.release(idx)
 	else:
+		if n.blocks_transit_of(pool.owner[idx]):
+			_drop(w, idx, via_link, via_dir, World.DROP_CLOSED)    # закрытый чужой маршрутизатор: видимый дроп на входном линке
+			return
 		if not n.spend_cpu(Defs.CPU_COST_TRANSIT):
 			_drop(w, idx, via_link, via_dir, World.DROP_CPU)
 			return

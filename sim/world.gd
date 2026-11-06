@@ -24,7 +24,8 @@ const DROP_CPU: int = 1       # у узла не хватило CPU
 const DROP_NOROUTE: int = 2   # нет маршрута
 const DROP_GATEWAY: int = 3   # потолок шлюза или чужой шлюз
 const DROP_FIREWALL: int = 4  # файрвол сверх лимита
-var drops: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0])
+const DROP_CLOSED: int = 5    # закрытый чужой маршрутизатор не пустил транзит
+var drops: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0])
 var delivered: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0, 0])
 ## Недавние потери для отрисовки: [тик, id линка, направление]. В хеш не входит.
 var recent_drops: Array = []
@@ -77,12 +78,29 @@ func _apply(c: Command) -> void:
 			ok = _apply_clear_queue(c)
 		Command.Type.ACTIVATE:
 			ok = Stealth.apply_activate(self, c.player, c.args)
+		Command.Type.SET_ROUTER_RULE:
+			ok = _apply_router_rule(c)
 		_:
 			ok = false
 	if ok:
 		applied_log.append(c)
 	else:
 		rejected_count += 1
+
+func _apply_router_rule(c: Command) -> bool:
+	if c.args.size() != 2 or c.player < 0 or c.player >= players.size():
+		return false
+	var nid: int = c.args[0]
+	if nid < 0 or nid >= nodes.size() or (c.args[1] != 0 and c.args[1] != 1):
+		return false
+	var n: NodeState = nodes[nid]
+	if n.type != Defs.NodeType.ROUTER or n.owner != c.player:
+		return false
+	var open: bool = c.args[1] == 1
+	if n.router_open != open:
+		n.router_open = open
+		routes_dirty = true    # игроки, знающие правило, перестроят маршруты
+	return true
 
 func _apply_queue_task(c: Command) -> bool:
 	if c.args.size() != 4 or c.player < 0 or c.player >= players.size():
@@ -119,7 +137,7 @@ func route_table(owner: int) -> Array[PackedInt32Array]:
 	return routes
 
 func total_drops() -> int:
-	return drops[DROP_QUEUE] + drops[DROP_CPU] + drops[DROP_NOROUTE] + drops[DROP_GATEWAY] + drops[DROP_FIREWALL]
+	return drops[DROP_QUEUE] + drops[DROP_CPU] + drops[DROP_NOROUTE] + drops[DROP_GATEWAY] + drops[DROP_FIREWALL] + drops[DROP_CLOSED]
 
 ## Хеш всего состояния. Порядок обхода фиксирован: по id.
 func state_hash() -> int:

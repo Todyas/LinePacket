@@ -46,10 +46,8 @@ static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
 	var role_txt: String = Hints.role_line(w, viewer, node_id)
 	if role_txt != "":
 		lines.append(role_txt)
-	if n.type == Defs.NodeType.SWITCH:
-		lines.append("Нейтральная инфраструктура")
-		lines.append("CPU: %d%%" % n.cpu_load_pct())
-		return "\n".join(lines)
+	if n.type == Defs.NodeType.ROUTER and n.owner >= 0:
+		lines.append("Транзит чужим: %s" % ("открыт" if n.router_open else "ЗАКРЫТ"))
 	if n.owner >= 0:
 		lines.append("Контроль: %d%%" % (n.control * 100 / Defs.CONTROL_MAX))
 	if n.down:
@@ -93,7 +91,7 @@ static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
 			lines.append("Агенты здесь: %s" % ", ".join(here))
 		if n.owner == viewer or viewer < 0:
 			for a in w.agents:
-				if a.node == node_id and a.owner != n.owner and a.mode == AgentState.Mode.WORK and int(a.queue[0][0]) == Defs.TaskKind.CAPTURE:
+				if a.node == node_id and a.owner != n.owner and a.mode == AgentState.Mode.WORK and Agents.is_capture_kind(int(a.queue[0][0])):
 					var paused: bool = not Agents.capture_possible(w, a, n)
 					lines.append("ЗАХВАТ АГЕНТОМ: %d%%%s" % [a.progress_permille() / 10, " (стоит)" if paused else ""])
 	else:
@@ -120,8 +118,8 @@ static func _snapshot_text(w: World, node_id: int, viewer: int) -> String:
 	lines.append("Владелец: %s" % Names.owner_name(sn.owner))
 	if sn.owner >= 0 and (n.type == Defs.NodeType.MACHINE or n.type == Defs.NodeType.CORE):
 		lines.append(_role_text(sn.role, sn.role_target, w))
-	if n.type == Defs.NodeType.SWITCH:
-		return "\n".join(lines)
+	if n.type == Defs.NodeType.ROUTER and sn.owner >= 0:
+		lines.append("Транзит чужим: %s" % ("открыт" if sn.router_open else "ЗАКРЫТ"))
 	if sn.owner >= 0:
 		lines.append("Контроль: %d%%" % (sn.control * 100 / Defs.CONTROL_MAX))
 		lines.append("Доступ: %s" % Names.access_mode(sn.access_mode, 0).replace(" (v0)", ""))
