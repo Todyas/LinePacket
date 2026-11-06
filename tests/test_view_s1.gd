@@ -6,16 +6,6 @@ func test_picking_node() -> void:
 	check_eq(Picking.hit_node(w, Vector2(95, 455), 30.0), 0)
 	check_eq(Picking.hit_node(w, Vector2(700, 800), 30.0), -1)
 
-func test_picking_flow_follows_route() -> void:
-	var w: World = TestMaps.diamond()
-	w.submit(Command.start_flow(0, 0, 0, 3, Defs.PacketType.FLOOD, 5))
-	w.step()
-	var fid: int = w.flows[0].id
-	# середина первой ветки 0→1: ((0,300)+(300,0))/2
-	check_eq(Picking.hit_flow(w, 0, Vector2(150, 150), 10.0), fid)
-	check_eq(Picking.hit_flow(w, 0, Vector2(150, 800), 10.0), -1, "точка далеко от маршрута")
-	check_eq(Picking.hit_flow(w, 1, Vector2(150, 150), 10.0), -1, "чужой поток выбираться не должен")
-
 func test_link_color_by_load() -> void:
 	var idle: Color = GraphView.link_color(0)
 	var busy: Color = GraphView.link_color(60)
@@ -61,12 +51,15 @@ func test_overlay_text() -> void:
 func test_packet_view_frame_cost() -> void:
 	var w: World = TestMaps.grid(8, 1200)
 	var rng := Rng.new(7)
+	var srcs: Array = []
+	var dsts: Array = []
 	for i in 300:
 		var s: int = rng.range_int(0, 63)
 		var d: int = rng.range_int(0, 64)
 		if s != d and w.nodes[s].owner == 0:
-			w.submit(Command.start_flow(0, 0, s, d, Defs.PacketType.FLOOD, 20))
-	w.run(400)
+			srcs.append(s)
+			dsts.append(d)
+	TestMaps.pump(w, srcs, dsts, Defs.PacketType.FLOOD, 20, 400)
 	var pv := PacketView.new()
 	pv._ready()
 	var t0: int = Time.get_ticks_usec()

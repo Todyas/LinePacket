@@ -50,29 +50,19 @@ const LINK_MIN_LATENCY: int = 2
 const NEUTRAL: int = -1
 const MAX_PLAYERS: int = 4
 
-## Поток: интенсивность в пакетах в секунду.
-const FLOW_MIN_RATE: int = 1
-const FLOW_MAX_RATE: int = 20
-const FLOW_DEFAULT_RATE: int = 4
-
 ## Типы пакетов (значения не менять).
-enum PacketType { DATA, KEEPALIVE, INIT, SCAN, FLOOD, PAYLOAD, PAYLOAD_HIDDEN, AGENT }
+enum PacketType { DATA, KEEPALIVE, INIT, FLOOD, PAYLOAD, PAYLOAD_HIDDEN, AGENT }
 
 ## Размер пакета: сколько места занимает в канале.
 const PACKET_SIZE: Dictionary = {
 	PacketType.DATA: 1,
 	PacketType.KEEPALIVE: 1,
 	PacketType.INIT: 1,
-	PacketType.SCAN: 1,
 	PacketType.FLOOD: 1,
 	PacketType.PAYLOAD: 1,
 	PacketType.PAYLOAD_HIDDEN: 1,
 	PacketType.AGENT: 5,
 }
-
-## Какие типы игрок может пускать потоком (остальные идут автоматически).
-## Список растёт вместе со спринтами по мере появления механик.
-const PLAYER_FLOW_TYPES: Array = [PacketType.FLOOD, PacketType.INIT, PacketType.PAYLOAD, PacketType.PAYLOAD_HIDDEN, PacketType.SCAN]
 
 ## --- Сеть (S1) ---
 
@@ -81,7 +71,6 @@ const CPU_COST_ARRIVE: Dictionary = {
 	PacketType.DATA: 1,
 	PacketType.KEEPALIVE: 1,
 	PacketType.INIT: 1,
-	PacketType.SCAN: 1,
 	PacketType.FLOOD: 2,
 	PacketType.PAYLOAD: 2,
 	PacketType.PAYLOAD_HIDDEN: 2,
@@ -185,7 +174,8 @@ const FIREWALL_BURST_TICKS: int = 4
 ## Хранилище прибавляет к буферу байт.
 const STORAGE_BUFFER_BONUS: int = 100
 ## Ретранслятор: исходящие потоки с узла в процентах от заданных; собственная выработка DATA — в процентах.
-const RELAY_FLOW_PERCENT: int = 200
+## Ретранслятор: боевая роль машины мощнее (проценты).
+const RELAY_COMBAT_PERCENT: int = 200
 const RELAY_DATA_PERCENT: int = 50
 
 const AGENTS_PER_PLAYER: int = 3
@@ -260,11 +250,8 @@ const CLEAN_EXTRA_S: int = 14
 
 ## --- Туман и разведка (S5) ---
 
-## SCAN: узел-цель не дальше стольких линков от узла, откуда идёт скан. Поток сам заканчивается, когда скан дошёл.
-const SCAN_MAX_HOPS: int = 3
-const SCAN_FLOW_RATE: int = 4
 ## IDS пишет в лог чужие пакеты этих типов; от одного атакующего на один узел — не чаще раза в несколько секунд.
-const IDS_WATCHED: Array = [PacketType.FLOOD, PacketType.PAYLOAD, PacketType.INIT, PacketType.SCAN]
+const IDS_WATCHED: Array = [PacketType.FLOOD, PacketType.PAYLOAD, PacketType.INIT]
 const IDS_COOLDOWN_TICKS: int = 60
 ## Данные снимка бледнеют за столько секунд (только вид).
 const SNAPSHOT_FADE_S: int = 90
@@ -296,6 +283,41 @@ const SNIFFER_STEAL_PERCENT: int = 25
 const ACTIVATE_DISABLE_SOFT_TICKS: int = 400
 enum ActivateMode { TAKEOVER, DISABLE_SOFT }
 
+## --- Роли машин (S9) ---
+
+## У каждой своей машины и ядра ровно одна роль. Боевая роль задаётся вместе с целью.
+enum Role { WORK, CAPTURE, PRESSURE, INFECT, INFECT_HIDDEN, WATCH }
+const ROLE_NAMES: Dictionary = {
+	Role.WORK: "Работа",
+	Role.CAPTURE: "Захват",
+	Role.PRESSURE: "Давление",
+	Role.INFECT: "Заражение",
+	Role.INFECT_HIDDEN: "Тайное заражение",
+	Role.WATCH: "Дозор",
+}
+## Боевые роли шлют пакеты на цель и дохода не дают.
+const COMBAT_ROLES: Array = [Role.CAPTURE, Role.PRESSURE, Role.INFECT, Role.INFECT_HIDDEN]
+## Пакет, который шлёт боевая роль по типу.
+const ROLE_PACKET: Dictionary = {
+	Role.CAPTURE: PacketType.INIT,
+	Role.PRESSURE: PacketType.FLOOD,
+	Role.INFECT: PacketType.PAYLOAD,
+	Role.INFECT_HIDDEN: PacketType.PAYLOAD_HIDDEN,
+}
+## Мощность боевой роли: пакетов в секунду по типу узла.
+const ROLE_POWER: Dictionary = {
+	NodeType.CORE: 8,
+	NodeType.MACHINE: 6,
+}
+## Цель боевой роли не дальше стольких линков от машины.
+const ROLE_MAX_HOPS: int = 3
+## Перенастройка роли: машина ничего не шлёт.
+const ROLE_RECONF_TICKS: int = 100
+## Дозор: снимок узлов в радиусе раз в интервал; «Работа» в дозоре даёт этот процент дохода.
+const WATCH_RADIUS: int = 2
+const WATCH_INTERVAL_TICKS: int = 200
+const WATCH_DATA_PERCENT: int = 50
+
 ## --- Скорость игры (вид, не sim): доля реального времени, с которой идут тики ---
 const GAME_SPEEDS_PERCENT: Array = [25, 50, 100, 200]
 const GAME_SPEED_DEFAULT_INDEX: int = 1
@@ -307,24 +329,26 @@ const BOT_PROFILE: Dictionary = {
 	"think_ticks": 10,          # раз в полсекунды
 	"reserve": 5,               # байт, которые не тратит на задачи агентов
 	"init_timeout_s": 45,       # захват нейтрала дольше этого — спор с соперником, уступаем
-	"init_cooldown_s": 90,      # и столько не возвращаемся к этой цели
+	"op_timeout_s": 150,        # операция против чужого узла дольше этого — снимаем
+	"op_cooldown_s": 60,        # и столько не возвращаемся к этой цели
 	"max_init_flows": 2,        # одновременных захватов нейтралов
+	"capture_machines": 1,      # машин на одну цель захвата
 	"base_nodes": 4,            # сколько узлов держит без шлюзов
 	"nodes_per_gateway": 4,     # и сколько прибавляет на каждый шлюз
 	"expand_enemy_gap": 1,      # нейтрал берётся, только если он ближе к своему ядру, чем к вражескому, на столько хопов
 	"expand_hops": 2,           # насколько далеко от своих узлов тянется захват
 	"toward_enemy": 6,          # тяга расширения к чужому ядру (за хоп до него)
-	"scan_interval_s": 15,      # пауза между сканами
-	"rescan_s": 45,             # когда снимок считается старым
+	"watchers": 1,              # машин в дозоре
 	"attack_start_s": 480,      # когда начинает атаковать
 	"attack_min_nodes": 5,      # и сколько узлов для этого нужно
 	"max_attack_targets": 1,    # целей под атакой одновременно
-	"flood_hold_rate": 10,      # флуд на лежащую цель, которую уже заражают
-	"payload_hold_rate": 12,    # вирус на лежащую цель
-	"floods_per_target": 2,     # потоков флуда на одну защищённую цель
-	"attack_hops": 2,           # цель не дальше стольких хопов от своего узла
-	"hidden_percent": 25,       # как часто против защищённой цели берёт скрытый вирус вместо флуда
-	"core_pull": 6,             # тяга атаки к чужому ядру
-	"payload_rich_bank": 200,   # с какого банка бьёт вирусом напором и против защищённой цели
+	"min_combat": 2,            # машин в бою можно всегда
+	"max_combat_percent": 60,   # доля машин в боевых ролях
+	"pressure_machines": 3,     # машин в давлении на защищённую цель
+	"infect_machines": 3,       # машин в заражении слабой цели
+	"attack_hops": 3,           # цель не дальше стольких хопов от своей машины
+	"hidden_percent": 25,       # шанс тайного заражения при деньгах
+	"payload_rich_bank": 200,   # сколько байт считается «богатым» банком
+	"core_pull": 10,            # тяга атаки к чужому ядру
 	"threat_memory_s": 60,      # сколько помнит атаку по логу IDS
 }

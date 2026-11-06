@@ -1,8 +1,13 @@
 extends TestCase
 
-func _flood(w: World, rate: int = 20) -> void:
-	w.submit(Command.start_flow(1, w.tick, 3, 2, Defs.PacketType.FLOOD, rate))
-	w.submit(Command.start_flow(1, w.tick, 4, 2, Defs.PacketType.FLOOD, rate))
+func _flood(w: World) -> void:
+	# Две машины с ретрансляторами складывают давление: 16 + 12 пакетов в секунду на машину 2.
+	TestMaps.boost(w, 3)
+	TestMaps.boost(w, 4)
+	w.nodes[2].cpu_base = 24
+	w.nodes[2].cpu_per_s = 24    # слабая машина: давление двух атакующих держит её лежащей
+	TestMaps.engage(w, 1, 3, 2, Defs.PacketType.FLOOD)
+	TestMaps.engage(w, 1, 4, 2, Defs.PacketType.FLOOD)
 
 func test_overloaded_machine_lies_and_stops_sending() -> void:
 	var w: World = TestMaps.siege()
@@ -18,8 +23,8 @@ func test_overloaded_machine_lies_and_stops_sending() -> void:
 	w.run(60)
 	check_eq(m.auto_sent, frozen, "лежащая машина не шлёт DATA и KEEPALIVE")
 	# Передышка: поток остановлен, машина поднимается.
-	for f in w.flows.duplicate():
-		w.submit(Command.stop_flow(1, w.tick, f.id))
+	TestMaps.stand_down(w, 3)
+	TestMaps.stand_down(w, 4)
 	w.run(120)
 	check(not m.down, "после флуда машина должна подняться")
 	w.run(100)
@@ -38,12 +43,14 @@ func test_flood_loses_control_of_lying_machine() -> void:
 	w.run(30 * 20)
 	check_eq(w.nodes[2].owner, Defs.NEUTRAL, "лежащая под флудом машина теряет KEEPALIVE и отваливается")
 
-func _payload_world(with_av: bool, rate: int = 10) -> World:
+## Заражение машины 2 от перечисленных атакующих узлов (3 — ядро, 8/с; 4 — машина, 6/с).
+func _payload_world(with_av: bool, attackers: Array = [3, 4]) -> World:
 	var w: World = TestMaps.siege()
 	w.players[1].bank = 10000
 	if with_av:
 		w.nodes[2].install_soft(Defs.SoftType.ANTIVIRUS)
-	w.submit(Command.start_flow(1, 0, 3, 2, Defs.PacketType.PAYLOAD, rate))
+	for a in attackers:
+		TestMaps.engage(w, 1, a, 2, Defs.PacketType.PAYLOAD)
 	return w
 
 func test_payload_takes_over_machine_at_100_percent() -> void:
@@ -63,8 +70,8 @@ func test_payload_takes_over_machine_at_100_percent() -> void:
 	check(w.delivered[Defs.PacketType.PAYLOAD] >= needed, "нужно хотя бы %d пакетов" % needed)
 
 func test_antivirus_slows_infection() -> void:
-	var plain: World = _payload_world(false, 6)
-	var guarded: World = _payload_world(true, 6)
+	var plain: World = _payload_world(false, [4])
+	var guarded: World = _payload_world(true, [4])
 	plain.run(60)
 	guarded.run(60)
 	var a: int = plain.nodes[2].infect[1]
@@ -72,22 +79,15 @@ func test_antivirus_slows_infection() -> void:
 	check(a > 0 and b > 0, "шкалы должны расти")
 	check(b < a * 55 / 100, "антивирус должен замедлять заражение: %d против %d" % [b, a])
 	# Без нового PAYLOAD антивирус быстро сбивает шкалу.
-	for f in guarded.flows.duplicate():
-		guarded.submit(Command.stop_flow(1, guarded.tick, f.id))
+	TestMaps.stand_down(guarded, 4)
 	guarded.run(80)
 	check_eq(guarded.nodes[2].infect[1], 0, "антивирус сбивает шкалу")
-	for f in plain.flows.duplicate():
-		plain.submit(Command.stop_flow(1, plain.tick, f.id))
+	TestMaps.stand_down(plain, 4)
 	plain.run(40)
 	check(plain.nodes[2].infect[1] > 0, "без антивируса шкала тает медленно")
 
-func test_antivirus_can_stop_slow_infection_entirely() -> void:
-	var w: World = _payload_world(true, 3)    # слабый поток: тает быстрее, чем растёт
-	w.run(1200)
-	check_eq(w.nodes[2].owner, 0, "слабый поток не должен пробить антивирус")
-
 func test_payload_costs_bytes() -> void:
-	var w: World = _payload_world(false, 20)
+	var w: World = _payload_world(false)
 	w.players[1].bank = 5
 	w.run(16)    # раньше, чем придёт доход с шлюза
 	check_eq(w.players[1].bank, 0, "PAYLOAD должен списывать байты")
@@ -106,44 +106,46 @@ func _ticks_to_takeover(w: World) -> int:
 	return t
 
 func test_firewall_slows_payload() -> void:
-	var plain: World = _payload_world(false, 20)
-	var walled: World = _payload_world(false, 20)
+	var plain: World = _payload_world(false)
+	var walled: World = _payload_world(false)
+	for w in [plain, walled]:
+		TestMaps.boost(w, 3)
+		TestMaps.boost(w, 4)
 	walled.nodes[2].install_soft(Defs.SoftType.FIREWALL)
 	var t_plain: int = _ticks_to_takeover(plain)
 	var t_walled: int = _ticks_to_takeover(walled)
 	check(walled.drops[World.DROP_FIREWALL] > 0, "файрвол должен сбрасывать лишний PAYLOAD")
 	check(t_walled > t_plain, "с файрволом захват дольше: %d против %d" % [t_walled, t_plain])
 
-func test_takeover_expels_defender_agents_and_flows() -> void:
+func test_takeover_expels_defender_agents_and_resets_role() -> void:
 	var w: World = TestMaps.siege()
 	w.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.MOVE, 2))
 	w.run(60)
 	check_eq(Agents.agent_of(w, 0, 0).node, 2)
-	w.submit(Command.start_flow(0, w.tick, 2, 3, Defs.PacketType.FLOOD, 5))
-	w.step()
-	check_eq(w.flows.size(), 1)
+	TestMaps.engage(w, 0, 2, 3, Defs.PacketType.FLOOD)
+	check_eq(w.nodes[2].role, Defs.Role.PRESSURE)
 	Economy.takeover(w, w.nodes[2], 1)
 	check_eq(Agents.agent_of(w, 0, 0).mode, AgentState.Mode.LOST, "агенты защитника вылетают")
-	w.step()
-	check_eq(w.flows.size(), 0, "потоки защитника с потерянной машины прекращаются")
+	check_eq(w.nodes[2].role, Defs.Role.WORK, "машина, сменившая владельца, возвращается к работе")
 	w.run(Defs.AGENT_RETURN_TICKS + 5)
 	check_eq(Agents.agent_of(w, 0, 0).node, 0, "и возвращаются на ядро через 20 с")
 
 func test_weak_password_cracked_by_init_keys_never() -> void:
 	var weak: World = TestMaps.siege()
-	weak.submit(Command.start_flow(1, 0, 3, 2, Defs.PacketType.INIT, 10))
+	TestMaps.engage(weak, 1, 3, 2, Defs.PacketType.INIT)
 	weak.run(200)
 	check(weak.nodes[2].access_mask & 2 != 0, "слабый пароль должен подобраться")
 	var strong: World = TestMaps.siege()
 	strong.nodes[2].access_mode = Defs.AccessMode.PASSWORD_STRONG
-	strong.submit(Command.start_flow(1, 0, 3, 2, Defs.PacketType.INIT, 10))
+	TestMaps.engage(strong, 1, 3, 2, Defs.PacketType.INIT)
 	strong.run(200)
 	check(strong.nodes[2].access_mask & 2 == 0, "сильный пароль за то же время не сдаётся")
 	check(strong.nodes[2].brute[1] > 0, "но шкала подбора растёт")
 	var keys: World = TestMaps.siege()
 	keys.nodes[2].access_mode = Defs.AccessMode.KEYS
-	keys.submit(Command.start_flow(1, 0, 3, 2, Defs.PacketType.INIT, 20))
-	keys.run(2000)
+	keys.submit(Command.set_role(1, 0, 3, Defs.Role.CAPTURE, 2))
+	keys.run(10)
+	check_eq(keys.rejected_count, 1, "на ключи подбор не назначить")
 	check(keys.nodes[2].access_mask & 2 == 0, "ключи не подбираются")
 	check_eq(keys.nodes[2].brute[1], 0)
 
@@ -241,7 +243,7 @@ func test_clean_virus_resets_infection() -> void:
 func test_core_capture_ends_match() -> void:
 	var w: World = TestMaps.rush()
 	w.players[1].bank = 1000
-	w.submit(Command.start_flow(1, 0, 1, 0, Defs.PacketType.PAYLOAD, 20))
+	TestMaps.engage(w, 1, 1, 0, Defs.PacketType.PAYLOAD)
 	var guard: int = 0
 	while w.winner < 0 and guard < 1000:
 		w.step()

@@ -6,22 +6,21 @@ extends RefCounted
 static func build_basic(seed_value: int) -> World:
 	var res: Dictionary = MapLoader.load_file("res://maps/duel.json", seed_value)
 	var w: World = res["world"]
-	w.submit(Command.start_flow(0, 10, 0, 22, Defs.PacketType.FLOOD, 6))
-	w.submit(Command.start_flow(1, 25, 10, 20, Defs.PacketType.FLOOD, 4))
-	w.submit(Command.start_flow(0, 40, 1, 17, Defs.PacketType.FLOOD, 12))
-	w.submit(Command.stop_flow(0, 300, 1))
+	w.submit(Command.set_role(0, 10, 0, Defs.Role.CAPTURE, 2))
+	w.submit(Command.set_role(1, 25, 10, Defs.Role.CAPTURE, 12))
+	w.submit(Command.set_role(0, 400, 0, Defs.Role.WATCH))
+	w.submit(Command.set_role(0, 700, 0, Defs.Role.WORK))
 	w.submit(Command.make(Command.Type.NOOP, 0, 500))
 	return w
 
-## Партия Дуэли с расширением P0: INIT на соседей, затем потоки — проверяет хеш экономики.
+## Партия Дуэли с расширением: роли «Захват» у обоих ядер — проверяет хеш экономики.
 static func build_economy(seed_value: int) -> World:
 	var res: Dictionary = MapLoader.load_file("res://maps/duel.json", seed_value)
 	var w: World = res["world"]
-	w.submit(Command.start_flow(0, 5, 0, 2, Defs.PacketType.INIT, 10))
-	w.submit(Command.start_flow(0, 5, 0, 3, Defs.PacketType.INIT, 10))
-	w.submit(Command.start_flow(1, 8, 10, 12, Defs.PacketType.INIT, 14))
-	w.submit(Command.start_flow(0, 400, 1, 4, Defs.PacketType.INIT, 20))
-	w.submit(Command.start_flow(1, 500, 10, 14, Defs.PacketType.FLOOD, 9))
+	w.submit(Command.set_role(0, 5, 0, Defs.Role.CAPTURE, 2))
+	w.submit(Command.set_role(1, 8, 10, Defs.Role.CAPTURE, 12))
+	w.submit(Command.set_role(0, 400, 0, Defs.Role.CAPTURE, 3))
+	w.submit(Command.set_role(1, 500, 10, Defs.Role.CAPTURE, 14))
 	return w
 
 ## Агенты в работе: INIT-расширение, смена ключей и установка ПО.
@@ -29,24 +28,24 @@ static func build_agents(seed_value: int) -> World:
 	var res: Dictionary = MapLoader.load_file("res://maps/duel.json", seed_value)
 	var w: World = res["world"]
 	w.players[0].bank = 150
-	w.submit(Command.start_flow(0, 5, 0, 2, Defs.PacketType.INIT, 20))
-	w.submit(Command.start_flow(0, 5, 1, 3, Defs.PacketType.INIT, 20))
+	w.submit(Command.set_role(0, 5, 0, Defs.Role.CAPTURE, 2))
+	w.submit(Command.set_role(0, 400, 0, Defs.Role.CAPTURE, 3))
 	w.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.INSTALL_SOFT, 1, Defs.SoftType.FIREWALL))
 	w.submit(Command.queue_task(0, 0, 1, Defs.TaskKind.SET_KEYS, 1))
 	w.submit(Command.queue_task(0, 300, 2, Defs.TaskKind.INSTALL_SOFT, 2, Defs.SoftType.FIREWALL))
 	w.submit(Command.queue_task(0, 400, 1, Defs.TaskKind.CHANGE_PASSWORD, 3))
-	w.submit(Command.start_flow(1, 100, 10, 12, Defs.PacketType.INIT, 20))
+	w.submit(Command.set_role(1, 100, 10, Defs.Role.CAPTURE, 12))
 	w.submit(Command.queue_task(1, 120, 0, Defs.TaskKind.SET_KEYS, 10))
 	return w
 
-## Осада: INIT, PAYLOAD, флуд, агенты по обе стороны — для проверки детерминизма атаки.
+## Осада: захват, заражение, давление, агенты по обе стороны — для проверки детерминизма атаки.
 static func build_siege(seed_value: int) -> World:
 	var w: World = TestMaps.siege(seed_value)
 	w.players[0].bank = 200
 	w.players[1].bank = 300
-	w.submit(Command.start_flow(1, 5, 3, 2, Defs.PacketType.INIT, 20))
-	w.submit(Command.start_flow(1, 100, 4, 2, Defs.PacketType.PAYLOAD, 14))
-	w.submit(Command.start_flow(1, 200, 3, 2, Defs.PacketType.FLOOD, 12))
+	w.submit(Command.set_role(1, 5, 3, Defs.Role.CAPTURE, 2))
+	w.submit(Command.set_role(1, 100, 4, Defs.Role.INFECT, 2))
+	w.submit(Command.set_role(1, 200, 3, Defs.Role.PRESSURE, 2))
 	w.submit(Command.queue_task(0, 10, 0, Defs.TaskKind.INSTALL_SOFT, 2, Defs.SoftType.ANTIVIRUS))
 	w.submit(Command.queue_task(0, 300, 1, Defs.TaskKind.SET_KEYS, 2))
 	w.submit(Command.queue_task(1, 400, 0, Defs.TaskKind.STEAL_KEY, 2))
@@ -59,8 +58,8 @@ static func build_stealth(seed_value: int) -> World:
 	w.players[1].bank = 400
 	w.nodes[1].install_soft(Defs.SoftType.SNIFFER)
 	w.submit(Command.queue_task(0, 5, 0, Defs.TaskKind.INSTALL_SOFT, 2, Defs.SoftType.IDS))
-	w.submit(Command.start_flow(1, 10, 3, 2, Defs.PacketType.PAYLOAD_HIDDEN, 20))
-	w.submit(Command.start_flow(1, 20, 3, 2, Defs.PacketType.SCAN, 4))
+	w.submit(Command.set_role(1, 10, 3, Defs.Role.INFECT_HIDDEN, 2))
+	w.submit(Command.set_role(1, 20, 4, Defs.Role.WATCH))
 	w.submit(Command.queue_task(1, 300, 0, Defs.TaskKind.STEAL_KEY, 2))
 	w.submit(Command.queue_task(1, 320, 1, Defs.TaskKind.BACKDOOR, 2))
 	w.submit(Command.activate(1, 1200, 2, Defs.ActivateMode.DISABLE_SOFT))

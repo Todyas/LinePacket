@@ -160,7 +160,6 @@ func _process(delta: float) -> void:
 	hud.player = local_player
 	agent_panel.player = local_player
 	end_screen.local_player = local_player
-	links_view.hover_flow = input_ctl.hover_flow
 	nodes_view.selected_node = input_ctl.selected_node
 	nodes_view.agent_player = local_player
 	card.selected_node = input_ctl.selected_node

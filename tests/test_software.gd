@@ -24,8 +24,8 @@ func test_software_eats_cpu() -> void:
 func test_firewall_cuts_foreign_flood_to_limit_and_eats_cpu() -> void:
 	var plain: World = _flooded(false)
 	var guarded: World = _flooded(true)
-	plain.run(400)
-	guarded.run(400)
+	TestMaps.pump(plain, [1], [2], Defs.PacketType.FLOOD, 20, 400)
+	TestMaps.pump(guarded, [1], [2], Defs.PacketType.FLOOD, 20, 400)
 	var secs: int = 20
 	var passed_plain: int = plain.delivered[Defs.PacketType.FLOOD]
 	var passed_fw: int = guarded.delivered[Defs.PacketType.FLOOD]
@@ -42,28 +42,26 @@ func _flooded(with_firewall: bool) -> World:
 	Economy.capture_node(w, w.nodes[2], 0)      # цель — машина игрока 0
 	if with_firewall:
 		w.nodes[2].install_soft(Defs.SoftType.FIREWALL)
-	w.submit(Command.start_flow(1, 0, 1, 2, Defs.PacketType.FLOOD, 20))
 	return w
 
 func test_firewall_ignores_own_traffic() -> void:
 	var w: World = TestMaps.star()
 	Economy.capture_node(w, w.nodes[2], 0)
 	w.nodes[2].install_soft(Defs.SoftType.FIREWALL)
-	w.submit(Command.start_flow(0, 0, 0, 2, Defs.PacketType.FLOOD, 20))
-	w.run(200)
+	TestMaps.pump(w, [0], [2], Defs.PacketType.FLOOD, 20, 200)
 	check_eq(w.drops[World.DROP_FIREWALL], 0, "свой трафик файрвол не режет")
 
 func test_relay_multiplies_outgoing_flow_and_cuts_own_income() -> void:
 	var a: World = TestMaps.pair(200, "optic")
 	var b: World = TestMaps.pair(200, "optic")
 	b.nodes[0].install_soft(Defs.SoftType.RELAY)
-	a.submit(Command.start_flow(0, 0, 0, 1, Defs.PacketType.FLOOD, 5))
-	b.submit(Command.start_flow(0, 0, 0, 1, Defs.PacketType.FLOOD, 5))
-	a.run(201)
-	b.run(201)
+	TestMaps.engage(a, 0, 0, 1, Defs.PacketType.FLOOD)
+	TestMaps.engage(b, 0, 0, 1, Defs.PacketType.FLOOD)
+	a.run(200)
+	b.run(200)
 	var ta: int = a.delivered[Defs.PacketType.FLOOD] + a.pool.alive_count + a.total_drops()
 	var tb: int = b.delivered[Defs.PacketType.FLOOD] + b.pool.alive_count + b.total_drops()
-	check_eq(tb, ta * 2, "ретранслятор удваивает исходящий поток (%d → %d)" % [ta, tb])
+	check_eq(tb, ta * 2, "ретранслятор удваивает боевую мощность (%d → %d)" % [ta, tb])
 	# Меньше своего дохода: буфер без шлюза копится вдвое медленнее.
 	var c: World = TestMaps.eco_fan(0, -1)
 	var d: World = TestMaps.eco_fan(0, -1)

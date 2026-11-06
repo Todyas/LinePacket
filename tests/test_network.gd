@@ -60,35 +60,31 @@ func test_overflow_records_drop_events() -> void:
 	check_eq(w.recent_drops.size(), 20)
 	check_eq(int((w.recent_drops[0] as Array)[1]), 0, "событие дропа должно ссылаться на линк")
 
-func test_flow_emits_at_rate() -> void:
+func test_role_emits_at_power() -> void:
 	var w: World = TestMaps.pair(200)
-	w.submit(Command.start_flow(0, 0, 0, 1, Defs.PacketType.FLOOD, 10))
-	w.run(101)
-	# 10 пакетов/с: тик 0 только копит; пакеты рождаются на тиках 1,3,...,99 → 50 штук за 100 тиков.
+	TestMaps.engage(w, 0, 0, 1, Defs.PacketType.FLOOD)
+	w.run(100)
+	# Мощность ядра 8 пакетов/с: за 100 тиков (5 с) рождается ровно 40 пакетов.
 	var total: int = w.delivered[Defs.PacketType.FLOOD] + w.pool.alive_count + w.total_drops()
-	check_eq(total, 50)
+	check_eq(total, 40)
 	check_eq(w.total_drops(), 0)
 
-func test_flow_rate_change() -> void:
+func test_role_reconfig_delays_packets() -> void:
 	var w: World = TestMaps.pair(200)
-	w.submit(Command.start_flow(0, 0, 0, 1, Defs.PacketType.FLOOD, 4))
-	w.step()
-	var fid: int = w.flows[0].id
-	w.submit(Command.set_flow_rate(0, 1, fid, 9))
-	w.submit(Command.set_flow_rate(1, 1, fid, 3))   # чужой игрок
-	w.submit(Command.set_flow_rate(0, 1, fid, 99))  # вне диапазона
-	w.step()
-	check_eq(w.flows[0].rate, 9)
-	check_eq(w.rejected_count, 2)
+	w.submit(Command.set_role(0, 0, 0, Defs.Role.PRESSURE, 1))
+	w.run(Defs.ROLE_RECONF_TICKS)
+	check_eq(w.delivered[Defs.PacketType.FLOOD] + w.pool.alive_count, 0, "во время перенастройки пакетов нет")
+	w.run(40)
+	check(w.delivered[Defs.PacketType.FLOOD] + w.pool.alive_count > 0, "после перенастройки пакеты идут")
 
-func test_flow_stops_when_source_lost() -> void:
+func test_role_ends_when_source_lost() -> void:
 	var w: World = TestMaps.pair(200)
-	w.submit(Command.start_flow(0, 0, 0, 1, Defs.PacketType.FLOOD, 5))
+	TestMaps.engage(w, 0, 0, 1, Defs.PacketType.FLOOD)
 	w.run(3)
-	check_eq(w.flows.size(), 1)
+	check_eq(w.nodes[0].role, Defs.Role.PRESSURE)
 	w.nodes[0].owner = 1
 	w.step()
-	check_eq(w.flows.size(), 0, "поток должен прекратиться, когда источник сменил владельца")
+	check_eq(w.nodes[0].role, Defs.Role.WORK, "роль сбрасывается, когда цель стала своей")
 
 func test_route_avoids_congested_link() -> void:
 	var w: World = TestMaps.diamond()
@@ -135,36 +131,33 @@ func test_unreachable_destination_drops() -> void:
 
 func test_cpu_overload_drops_and_load() -> void:
 	var w: World = TestMaps.star()
-	w.submit(Command.start_flow(0, 0, 0, 2, Defs.PacketType.FLOOD, 20))
-	w.submit(Command.start_flow(1, 0, 1, 2, Defs.PacketType.FLOOD, 20))
-	w.run(200)
+	TestMaps.pump(w, [0, 1], [2, 2], Defs.PacketType.FLOOD, 20, 200)
 	var target: NodeState = w.nodes[2]
 	check(w.drops[World.DROP_CPU] > 0, "цель с перегрузом CPU должна терять пакеты")
 	check_eq(target.cpu_load_pct(), 100)
 
 func test_cpu_light_load_no_drops() -> void:
 	var w: World = TestMaps.star()
-	w.submit(Command.start_flow(0, 0, 0, 2, Defs.PacketType.FLOOD, 5))
-	w.run(200)
+	TestMaps.pump(w, [0], [2], Defs.PacketType.FLOOD, 5, 200)
 	check_eq(w.total_drops(), 0)
 	var load_pct: int = w.nodes[2].cpu_load_pct()
 	# 5 флудов/с * 2 CPU = 10 из 40 → 25%
 	check(load_pct >= 20 and load_pct <= 30, "загрузка %d" % load_pct)
 
-func test_determinism_with_flows() -> void:
+func test_determinism_with_roles() -> void:
 	var a: World = Scenarios.build_basic(5)
 	var b: World = Scenarios.build_basic(5)
 	a.run(1000)
 	b.run(1000)
 	check_eq(a.state_hash(), b.state_hash())
-	check(a.delivered[Defs.PacketType.FLOOD] > 0, "в сценарии должны доходить пакеты")
-	check(a.pool.alive_count > 0)
+	check(a.delivered[Defs.PacketType.INIT] > 0, "в сценарии должны доходить пакеты")
 
 func test_stress_3000_packets_tick_under_10ms() -> void:
 	var w: World = TestMaps.grid(8, 1200)
 	var rng := Rng.new(2024)
-	# 8x8 сетка оптики; потоки между случайными парами внутри владения игрока 0.
-	var made: int = 0
+	# 8x8 сетка оптики; источники пакетов между случайными парами внутри владения игрока 0.
+	var srcs: Array = []
+	var dsts: Array = []
 	var src_pool: Array[int] = []
 	for n in w.nodes:
 		if n.owner == 0:
@@ -174,18 +167,18 @@ func test_stress_3000_packets_tick_under_10ms() -> void:
 		var d: int = rng.range_int(0, w.nodes.size())
 		if d == s:
 			continue
-		w.submit(Command.start_flow(0, 0, s, d, Defs.PacketType.FLOOD, 20))
-		made += 1
+		srcs.append(s)
+		dsts.append(d)
 	var reached: int = -1
 	for t in 1500:
-		w.step()
+		TestMaps.pump(w, srcs, dsts, Defs.PacketType.FLOOD, 20, 1)
 		if w.pool.alive_count >= 3000:
 			reached = t
 			break
 	check(reached >= 0, "не удалось набрать 3000 пакетов в полёте (макс. %d)" % w.pool.alive_count)
 	var t0: int = Time.get_ticks_usec()
 	for i in 100:
-		w.step()
+		TestMaps.pump(w, srcs, dsts, Defs.PacketType.FLOOD, 20, 1)
 	var avg_ms: float = float(Time.get_ticks_usec() - t0) / 100.0 / 1000.0
 	print("    [стресс] пакетов в полёте: %d, средний тик: %.2f мс" % [w.pool.alive_count, avg_ms])
 	check(w.pool.alive_count >= 3000, "в ходе замера пакетов меньше 3000: %d" % w.pool.alive_count)

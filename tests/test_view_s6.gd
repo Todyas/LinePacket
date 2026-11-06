@@ -9,7 +9,7 @@ func _labels(items: Array[Dictionary]) -> String:
 func test_ring_menu_offers_hidden_virus_backdoor_and_activation() -> void:
 	var w: World = TestMaps.siege()
 	var t: String = _labels(RingMenu.items_for(w, 1, 3, 2))
-	check(t.contains("Скрытый вирус"), t)
+	check(t.contains("Тайное заражение"), t)
 	check(t.contains("Бэкдор"), t)
 	check(not t.contains("Активировать"), "без вируса активировать нечего: " + t)
 	w.nodes[2].virus[1] = 1
@@ -17,7 +17,7 @@ func test_ring_menu_offers_hidden_virus_backdoor_and_activation() -> void:
 	var t2: String = _labels(RingMenu.items_for(w, 1, 3, 2))
 	check(t2.contains("Активировать: перехват"), t2)
 	check(t2.contains("Активировать: отключить ПО"), t2)
-	check(not t2.contains("Скрытый вирус ("), "второй вирус на ту же машину не предлагается: " + t2)
+	check(not t2.contains("Тайное заражение"), "второй вирус на ту же машину не предлагается: " + t2)
 
 func test_ring_menu_clean_appears_only_for_found_threat() -> void:
 	var w: World = TestMaps.siege()
@@ -48,8 +48,8 @@ func test_hidden_payload_key_and_hud_name() -> void:
 	ev.keycode = KEY_R
 	ev.pressed = true
 	ic._on_key(ev)
-	check_eq(ic.flow_type, Defs.PacketType.PAYLOAD_HIDDEN)
-	check_eq(Hud.flow_type_name(Defs.PacketType.PAYLOAD_HIDDEN), "СКРЫТЫЙ [R]")
+	check_eq(ic.role_mode, Defs.Role.INFECT_HIDDEN)
+	check_eq(Hud.role_mode_name(Defs.Role.INFECT_HIDDEN), "Тайное заражение [R]")
 	ic.camera.free()
 	ic.free()
 

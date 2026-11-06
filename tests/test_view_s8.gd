@@ -48,26 +48,19 @@ func test_node_hint_respects_fog() -> void:
 func test_hover_regions() -> void:
 	var w: World = TestMaps.siege()
 	var n: NodeState = w.nodes[w.players[0].core_node]
-	var at_node: String = HoverTip.text_at(w, 0, 0, Vector2(400, 400), Vector2(n.x, n.y), 1.0, Defs.PacketType.FLOOD, -1)
+	var at_node: String = HoverTip.text_at(w, 0, 0, Vector2(400, 400), Vector2(n.x, n.y), 1.0, Defs.Role.PRESSURE, -1)
 	check(at_node.contains("Ядро"), at_node)
-	var empty: String = HoverTip.text_at(w, 0, 0, Vector2(400, 400), Vector2(-9000, -9000), 1.0, Defs.PacketType.FLOOD, -1)
+	var empty: String = HoverTip.text_at(w, 0, 0, Vector2(400, 400), Vector2(-9000, -9000), 1.0, Defs.Role.PRESSURE, -1)
 	check_eq(empty, "")
-	var hud_tip: String = HoverTip.text_at(w, 0, 0, Vector2(300, 10), Vector2.ZERO, 1.0, Defs.PacketType.SCAN, -1)
-	check(hud_tip.contains("SCAN"), hud_tip)
-	var agent_tip: String = HoverTip.text_at(w, 0, 0, Vector2(100, 800), Vector2.ZERO, 1.0, Defs.PacketType.FLOOD, -1)
+	var hud_tip: String = HoverTip.text_at(w, 0, 0, Vector2(300, 10), Vector2.ZERO, 1.0, Defs.Role.WATCH, -1)
+	check(hud_tip.contains("Дозор"), hud_tip)
+	var agent_tip: String = HoverTip.text_at(w, 0, 0, Vector2(100, 800), Vector2.ZERO, 1.0, Defs.Role.PRESSURE, -1)
 	check(agent_tip.contains("Очередь пуста"), agent_tip)
 	w.players[0].bank = 100
 	w.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.CHANGE_PASSWORD, w.players[0].core_node))
 	w.step()
-	var busy: String = HoverTip.text_at(w, 0, 0, Vector2(100, 800), Vector2.ZERO, 1.0, Defs.PacketType.FLOOD, -1)
+	var busy: String = HoverTip.text_at(w, 0, 0, Vector2(100, 800), Vector2.ZERO, 1.0, Defs.Role.PRESSURE, -1)
 	check(busy.contains("пароль"), busy)
-
-func test_flow_hint_names_type_and_rate() -> void:
-	var f := FlowState.new()
-	f.ptype = Defs.PacketType.FLOOD
-	f.rate = 7
-	var t: String = Hints.flow(f)
-	check(t.contains("FLOOD") and t.contains("7"), t)
 
 func test_menu_applies_config() -> void:
 	var menu: Menu = load("res://view/menu.tscn").instantiate()
@@ -121,7 +114,7 @@ func test_paused_input_is_ignored() -> void:
 	ev.keycode = KEY_T
 	ev.pressed = true
 	main.input_ctl._on_key(ev)
-	check(main.input_ctl.flow_type != Defs.PacketType.SCAN, "в паузе режимы не меняются")
+	check(main.input_ctl.role_mode != Defs.Role.WATCH, "в паузе режимы не меняются")
 	main.queue_free()
 
 func test_game_has_bot_for_opponent() -> void:
@@ -211,7 +204,7 @@ func test_ring_menu_has_flow_items_without_selection() -> void:
 	var labels: Array[String] = []
 	for item in RingMenu.items_for(w, 0, src, 1):
 		labels.append(item["label"])
-	check(labels.any(func(l: String) -> bool: return l.begins_with("Захватить")), str(labels))
+	check(labels.any(func(l: String) -> bool: return l.begins_with("Захват")), str(labels))
 
 func test_ring_menu_explains_empty_cases() -> void:
 	var w: World = TestMaps.scout()

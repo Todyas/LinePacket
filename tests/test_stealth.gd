@@ -3,7 +3,8 @@ extends TestCase
 func _hidden_world(rate: int = 20) -> World:
 	var w: World = TestMaps.siege()
 	w.players[1].bank = 10000
-	w.submit(Command.start_flow(1, 0, 3, 2, Defs.PacketType.PAYLOAD_HIDDEN, rate))
+	TestMaps.engage(w, 1, 3, 2, Defs.PacketType.PAYLOAD_HIDDEN)
+	TestMaps.boost(w, 3)
 	return w
 
 func _infect_until_virus(w: World, guard: int = 800) -> void:
@@ -15,7 +16,8 @@ func _infect_until_virus(w: World, guard: int = 800) -> void:
 func test_hidden_payload_is_pricier_and_slower_than_plain() -> void:
 	var plain: World = TestMaps.siege()
 	plain.players[1].bank = 10000
-	plain.submit(Command.start_flow(1, 0, 3, 2, Defs.PacketType.PAYLOAD, 20))
+	TestMaps.engage(plain, 1, 3, 2, Defs.PacketType.PAYLOAD)
+	TestMaps.boost(plain, 3)
 	var t_plain: int = 0
 	while plain.nodes[2].owner == 0 and t_plain < 800:
 		plain.step()

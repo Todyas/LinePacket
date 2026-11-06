@@ -9,9 +9,7 @@ var rng: Rng
 var nodes: Array[NodeState] = []
 var links: Array[LinkState] = []
 var players: Array[PlayerState] = []
-var flows: Array[FlowState] = []
 var agents: Array[AgentState] = []          # по Defs.AGENTS_PER_PLAYER на игрока, подряд
-var next_flow_id: int = 1
 var pool: PacketPool = PacketPool.new()
 var routes: Array[PackedInt32Array] = []   # routes[dst][node] = id линка следующего шага или -1
 var route_dist: Array[PackedInt64Array] = []   # route_dist[dst][node] = цена пути node→dst
@@ -27,7 +25,7 @@ const DROP_NOROUTE: int = 2   # нет маршрута
 const DROP_GATEWAY: int = 3   # потолок шлюза или чужой шлюз
 const DROP_FIREWALL: int = 4  # файрвол сверх лимита
 var drops: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0])
-var delivered: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0, 0, 0])
+var delivered: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0, 0])
 ## Недавние потери для отрисовки: [тик, id линка, направление]. В хеш не входит.
 var recent_drops: Array = []
 
@@ -71,12 +69,8 @@ func _apply(c: Command) -> void:
 	match c.type:
 		Command.Type.NOOP:
 			pass
-		Command.Type.START_FLOW:
-			ok = _apply_start_flow(c)
-		Command.Type.STOP_FLOW:
-			ok = _apply_stop_flow(c)
-		Command.Type.SET_FLOW_RATE:
-			ok = _apply_set_flow_rate(c)
+		Command.Type.SET_ROLE:
+			ok = Roles.apply_set_role(self, c.player, c.args)
 		Command.Type.QUEUE_TASK:
 			ok = _apply_queue_task(c)
 		Command.Type.CLEAR_QUEUE:
@@ -89,62 +83,6 @@ func _apply(c: Command) -> void:
 		applied_log.append(c)
 	else:
 		rejected_count += 1
-
-func _apply_start_flow(c: Command) -> bool:
-	if c.args.size() != 4:
-		return false
-	var src: int = c.args[0]
-	var dst: int = c.args[1]
-	var ptype: int = c.args[2]
-	var rate: int = c.args[3]
-	if src < 0 or src >= nodes.size() or dst < 0 or dst >= nodes.size() or src == dst:
-		return false
-	if c.player < 0 or c.player >= players.size():
-		return false
-	if nodes[src].owner != c.player:
-		return false  # поток можно пустить только со своего узла
-	if not Defs.PLAYER_FLOW_TYPES.has(ptype):
-		return false
-	if ptype == Defs.PacketType.SCAN:
-		var hp: int = Knowledge.hops(self, src, dst)
-		if hp < 0 or hp > Defs.SCAN_MAX_HOPS:
-			return false   # скан достаёт не дальше SCAN_MAX_HOPS линков от узла-источника
-	if rate < Defs.FLOW_MIN_RATE or rate > Defs.FLOW_MAX_RATE:
-		return false
-	var f := FlowState.new()
-	f.id = next_flow_id
-	next_flow_id += 1
-	f.owner = c.player
-	f.src = src
-	f.dst = dst
-	f.ptype = ptype
-	f.rate = rate
-	flows.append(f)
-	return true
-
-func _apply_stop_flow(c: Command) -> bool:
-	if c.args.size() != 1:
-		return false
-	var fid: int = c.args[0]
-	for i in flows.size():
-		if flows[i].id == fid:
-			if flows[i].owner != c.player:
-				return false
-			flows.remove_at(i)
-			return true
-	return false
-
-func _apply_set_flow_rate(c: Command) -> bool:
-	if c.args.size() != 2:
-		return false
-	var f: FlowState = get_flow(c.args[0])
-	if f == null or f.owner != c.player:
-		return false
-	var rate: int = c.args[1]
-	if rate < Defs.FLOW_MIN_RATE or rate > Defs.FLOW_MAX_RATE:
-		return false
-	f.rate = rate
-	return true
 
 func _apply_queue_task(c: Command) -> bool:
 	if c.args.size() != 4 or c.player < 0 or c.player >= players.size():
@@ -180,27 +118,14 @@ func route_table(owner: int) -> Array[PackedInt32Array]:
 		return proutes[owner]
 	return routes
 
-func remove_flow(fid: int) -> void:
-	for i in flows.size():
-		if flows[i].id == fid:
-			flows.remove_at(i)
-			return
-
 func total_drops() -> int:
 	return drops[DROP_QUEUE] + drops[DROP_CPU] + drops[DROP_NOROUTE] + drops[DROP_GATEWAY] + drops[DROP_FIREWALL]
-
-func get_flow(fid: int) -> FlowState:
-	for f in flows:
-		if f.id == fid:
-			return f
-	return null
 
 ## Хеш всего состояния. Порядок обхода фиксирован: по id.
 func state_hash() -> int:
 	var h := Hasher.new()
 	h.add(tick)
 	h.add(rng.state)
-	h.add(next_flow_id)
 	h.add(winner)
 	h.add(finished_tick)
 	h.add(delivered_sniffed)
@@ -213,9 +138,6 @@ func state_hash() -> int:
 	h.add(players.size())
 	for p in players:
 		p.hash_into(h)
-	h.add(flows.size())
-	for f in flows:
-		f.hash_into(h)
 	h.add(agents.size())
 	for a in agents:
 		a.hash_into(h)

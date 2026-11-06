@@ -25,14 +25,6 @@ static func on_payload_hidden(w: World, node: NodeState, attacker: int) -> void:
 	if node.virus_meter[attacker] >= Defs.INFECT_MAX:
 		node.virus_meter[attacker] = 0
 		node.virus[attacker] = 1
-		# Потоки скрытого PAYLOAD этого игрока на машину больше не нужны.
-		var i: int = 0
-		while i < w.flows.size():
-			var f: FlowState = w.flows[i]
-			if f.ptype == Defs.PacketType.PAYLOAD_HIDDEN and f.dst == node.id and f.owner == attacker:
-				w.flows.remove_at(i)
-			else:
-				i += 1
 
 ## Активация: мгновенный перехват или отключение ПО. Вирус при этом расходуется.
 static func apply_activate(w: World, player: int, args: Array) -> bool:

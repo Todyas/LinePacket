@@ -24,27 +24,16 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if world == null:
 		return
-	var t: int = input_ctl.flow_type if input_ctl != null else Defs.PacketType.FLOOD
+	var t: int = input_ctl.role_mode if input_ctl != null else Defs.Role.PRESSURE
 	label.text = text_for(world, player, t, speed_percent)
 	label.add_theme_color_override("font_color", Palette.of_owner(player))
 
-static func flow_type_name(t: int) -> String:
-	match t:
-		Defs.PacketType.FLOOD:
-			return "FLOOD [W]"
-		Defs.PacketType.INIT:
-			return "INIT [Q]"
-		Defs.PacketType.PAYLOAD:
-			return "PAYLOAD [E]"
-		Defs.PacketType.PAYLOAD_HIDDEN:
-			return "СКРЫТЫЙ [R]"
-		Defs.PacketType.SCAN:
-			return "SCAN [T]"
-	return "?"
+static func role_mode_name(role: int) -> String:
+	return "%s [%s]" % [Defs.ROLE_NAMES[role], InputCtl.key_label(role)]
 
-static func text_for(w: World, player: int, flow_type: int, speed: int = -1) -> String:
+static func text_for(w: World, player: int, role_mode: int, speed: int = -1) -> String:
 	var p: PlayerState = w.players[player]
-	var txt: String = "Игрок %d    Байты: %d    Доход: +%d/с    Поток: %s" % [player + 1, p.bank, p.income_per_s(), flow_type_name(flow_type)]
+	var txt: String = "Игрок %d    Байты: %d    Доход: +%d/с    Роль: %s" % [player + 1, p.bank, p.income_per_s(), role_mode_name(role_mode)]
 	if speed > 0:
 		txt += "    Скорость: ×%s [-/+]" % ("%.2f" % (float(speed) / 100.0)).rstrip("0").rstrip(".")
 	return txt

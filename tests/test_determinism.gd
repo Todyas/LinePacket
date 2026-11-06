@@ -11,7 +11,7 @@ func test_same_seed_same_commands_same_hash() -> void:
 func test_hash_changes_with_commands() -> void:
 	var a: World = Scenarios.build_basic(42)
 	var b: World = Scenarios.build_basic(42)
-	b.submit(Command.start_flow(0, 100, 0, 23, Defs.PacketType.FLOOD, 3))
+	b.submit(Command.set_role(0, 100, 0, Defs.Role.WATCH))
 	a.run(1000)
 	b.run(1000)
 	check(a.state_hash() != b.state_hash(), "команда не повлияла на хеш")

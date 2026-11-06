@@ -9,6 +9,8 @@ var access_mode: int = Defs.AccessMode.PASSWORD_WEAK
 var soft: PackedInt32Array = PackedInt32Array()
 var buffer: int = 0
 var down: bool = false
+var role: int = Defs.Role.WORK
+var role_target: int = -1
 var my_access: bool = false      # был ли у игрока доступ (по его же ключам) на момент снимка
 ## Скрытое: только то, что игрок вправе знать (свой вирус и бэкдор, найденное у себя, найденный сниффер).
 var my_virus: bool = false
@@ -31,6 +33,8 @@ static func capture(n: NodeState, player: int, at_tick: int) -> NodeSnap:
 				s.soft[i] = -1      # чужой сниффер без находки IDS не виден
 	s.buffer = n.buffer
 	s.down = n.down
+	s.role = n.role
+	s.role_target = n.role_target
 	s.my_access = (n.access_mask & (1 << player)) != 0
 	s.my_virus = n.virus[player] == 1
 	s.my_backdoor = n.backdoor[player] == 1
@@ -53,6 +57,8 @@ func hash_into(h: Hasher) -> void:
 	h.add_array(soft)
 	h.add(buffer)
 	h.add(1 if down else 0)
+	h.add(role)
+	h.add(role_target)
 	h.add(1 if my_access else 0)
 	h.add(1 if my_virus else 0)
 	h.add(1 if my_backdoor else 0)

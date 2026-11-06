@@ -71,12 +71,12 @@ func test_ring_menu_items_for_neutral_and_enemy() -> void:
 	var kinds: Array[String] = []
 	for it in on_neutral:
 		kinds.append(it["label"])
-	check(" | ".join(kinds).contains("Захватить"), " | ".join(kinds))
-	check(" | ".join(kinds).contains("Флуд"))
+	check(" | ".join(kinds).contains("Захват (INIT)"), " | ".join(kinds))
+	check(not " | ".join(kinds).contains("Давление"), "на нейтрал давление не нужно")
 	var no_src: Array[String] = []
 	for it in RingMenu.items_for(w, 0, -1, 2):
 		no_src.append(it["label"])
-	check(not " | ".join(no_src).contains("Захватить"), "без источника потоков в items_for нет; источник подбирает source_for")
+	check(not " | ".join(no_src).contains("Захват (INIT)"), "без источника потоков в items_for нет; источник подбирает source_for")
 	check(RingMenu.items_for(w, 0, 1, -1).is_empty())
 
 func test_apply_ring_item_sends_commands() -> void:
@@ -90,12 +90,11 @@ func test_apply_ring_item_sends_commands() -> void:
 	ic.apply_item({"label": "x", "kind": "task", "task": Defs.TaskKind.SET_KEYS, "arg": 0})
 	ic.ring_target = 2
 	ic.ring_source = 1
-	ic.apply_item({"label": "y", "kind": "flow", "flow_type": Defs.PacketType.INIT})
+	ic.apply_item({"label": "y", "kind": "role", "role": Defs.Role.CAPTURE})
 	w.step()
 	check_eq(Agents.agent_of(w, 0, 2).queue.size(), 1)
-	check_eq(w.flows.size(), 1)
-	check_eq(w.flows[0].src, 1)
-	check_eq(w.flows[0].dst, 2)
+	check_eq(w.nodes[1].role, Defs.Role.CAPTURE)
+	check_eq(w.nodes[1].role_target, 2)
 	ic.camera.free()
 	ic.free()
 

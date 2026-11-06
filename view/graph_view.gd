@@ -1,12 +1,11 @@
 class_name GraphView
 extends Node2D
-## Рисует граф: форма узла по типу, цвет обводки по владельцу. Только читает мир.
+## Рисует граф: форма узла по типу, цвет обводки по владельцу, значок роли внутри. Только читает мир.
 
 var world: World
-## Что рисует экземпляр: линки и потоки или узлы (так пакеты оказываются между слоями).
+## Что рисует экземпляр: линки и линии ролей или узлы (так пакеты оказываются между слоями).
 var draw_links: bool = true
 var draw_nodes: bool = false
-var hover_flow: int = -1
 var selected_node: int = -1
 var agent_player: int = 0
 ## Чьими глазами рисуем; -1 — всеведущий взгляд (отладка и тесты).
@@ -22,7 +21,7 @@ func _draw() -> void:
 		return
 	if draw_links:
 		_draw_links()
-		_draw_flows()
+		_draw_role_lines()
 	if draw_nodes:
 		var font: Font = ThemeDB.fallback_font
 		for n in world.nodes:
@@ -52,23 +51,64 @@ static func link_color(load_pct: int) -> Color:
 		return Palette.OVERLOAD
 	return Palette.LINK.lerp(Palette.LINK_HOT, float(load_pct) / 90.0)
 
-func _draw_flows() -> void:
-	var font: Font = ThemeDB.fallback_font
-	for f in world.flows:
-		if viewer >= 0 and f.owner != viewer:
-			continue    # чужие потоки видны только пакетами на наблюдаемых линках
-		var path: Array[int] = Routing.path(world, f.src, f.dst, f.owner)
-		if path.size() < 2:
+## Линии от боевых машин к целям: цвет владельца, свои ярче; чужие видны, только если узел наблюдается или есть снимок.
+func _draw_role_lines() -> void:
+	for n in world.nodes:
+		var role: int = n.role
+		var target: int = n.role_target
+		if viewer >= 0 and n.owner != viewer:
+			var sn: NodeSnap = Knowledge.snap(world, viewer, n.id)
+			if sn == null or sn.owner < 0 or sn.owner == viewer:
+				continue
+			role = sn.role
+			target = sn.role_target
+		if n.owner < 0 or not Defs.COMBAT_ROLES.has(role) or target < 0:
 			continue
-		var col: Color = Palette.of_owner(f.owner)
-		var hot: bool = f.id == hover_flow
-		col.a = 0.9 if hot else 0.35
-		var pts := PackedVector2Array()
-		for nid in path:
-			pts.append(Vector2(world.nodes[nid].x, world.nodes[nid].y))
-		draw_polyline(pts, col, 5.0 if hot else 2.5, true)
-		var mid: Vector2 = (pts[0] + pts[1]) * 0.5 + Vector2(6, -8)
-		draw_string(font, mid, "%d/с" % f.rate, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)
+		var col: Color = role_color(role)
+		var mine: bool = viewer < 0 or n.owner == viewer
+		col.a = 0.75 if mine else 0.45
+		var a: Vector2 = Vector2(n.x, n.y)
+		var b: Vector2 = Vector2(world.nodes[target].x, world.nodes[target].y)
+		draw_dashed_line(a, b, col, 2.5 if mine else 2.0, 10.0, true)
+		var dir: Vector2 = (b - a).normalized()
+		var tip: Vector2 = b - dir * (NODE_RADIUS + 6.0)
+		draw_colored_polygon(PackedVector2Array([tip, tip - dir * 12.0 + dir.orthogonal() * 6.0, tip - dir * 12.0 - dir.orthogonal() * 6.0]), col)
+
+static func role_color(role: int) -> Color:
+	match role:
+		Defs.Role.CAPTURE:
+			return Color(0.45, 0.95, 0.55)
+		Defs.Role.PRESSURE:
+			return Color(1.0, 0.35, 0.3)
+		Defs.Role.INFECT:
+			return Color(0.8, 0.45, 1.0)
+		Defs.Role.INFECT_HIDDEN:
+			return Color(0.55, 0.4, 0.8)
+		Defs.Role.WATCH:
+			return Color(0.9, 0.9, 0.55)
+	return Color(1.0, 0.85, 0.3)
+
+## Значок роли внутри узла: монета — работа, флаг — захват, молния — давление, капля — заражение, пустая капля — тайное, глаз — дозор.
+func draw_role_glyph(role: int, c: Vector2, col: Color) -> void:
+	match role:
+		Defs.Role.WORK:
+			draw_circle(c, 6.0, col)
+			draw_circle(c, 2.5, Palette.NODE_FILL)
+		Defs.Role.CAPTURE:
+			draw_line(c + Vector2(-4, 9), c + Vector2(-4, -9), col, 2.0, true)
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-4, -9), c + Vector2(8, -4), c + Vector2(-4, 1)]), col)
+		Defs.Role.PRESSURE:
+			draw_polyline(PackedVector2Array([c + Vector2(3, -10), c + Vector2(-5, 1), c + Vector2(1, 1), c + Vector2(-3, 10), c + Vector2(6, -2), c + Vector2(0, -2), c + Vector2(3, -10)]), col, 2.5, true)
+		Defs.Role.INFECT:
+			draw_circle(c + Vector2(0, 3), 6.0, col)
+			draw_colored_polygon(PackedVector2Array([c + Vector2(-5, 1), c + Vector2(5, 1), c + Vector2(0, -10)]), col)
+		Defs.Role.INFECT_HIDDEN:
+			draw_arc(c + Vector2(0, 3), 6.0, 0.0, TAU, 24, col, 2.0, true)
+			draw_polyline(PackedVector2Array([c + Vector2(-5, 1), c + Vector2(0, -10), c + Vector2(5, 1)]), col, 2.0, true)
+		Defs.Role.WATCH:
+			draw_arc(c + Vector2(0, 7), 11.0, -PI * 0.8, -PI * 0.2, 12, col, 2.0, true)
+			draw_arc(c + Vector2(0, -7), 11.0, PI * 0.2, PI * 0.8, 12, col, 2.0, true)
+			draw_circle(c, 3.5, col)
 
 func shape_points(type: int, center: Vector2, r: float) -> PackedVector2Array:
 	var pts := PackedVector2Array()
@@ -124,6 +164,9 @@ func _draw_node(n: NodeState, font: Font) -> void:
 	var closed: PackedVector2Array = pts.duplicate()
 	closed.append(pts[0])
 	draw_polyline(closed, line_col, 3.0, true)
+	if v_owner >= 0 and lvl != Knowledge.Level.SILHOUETTE and (n.type == Defs.NodeType.MACHINE or n.type == Defs.NodeType.CORE):
+		var g_role: int = n.role if live else Knowledge.snap(world, viewer, n.id).role
+		draw_role_glyph(g_role, c, Color(Palette.of_owner(v_owner), 0.9 * alpha) if g_role == Defs.Role.WORK else Color(role_color(g_role), alpha))
 	if live:
 		# Кольцо захвата: чем полнее, тем ближе нейтрал к сдаче.
 		if n.owner < 0 and Defs.INIT_NEEDED.has(n.type):

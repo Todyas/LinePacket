@@ -1,7 +1,7 @@
 class_name BotView
 extends RefCounted
 ## Единственное окно бота в мир: открытая топология, карта знаний своего игрока и собственное состояние
-## (банк, агенты, потоки, свои узлы). Состояние чужих узлов отсюда не достать иначе, чем снимком.
+## (банк, агенты, роли своих узлов). Состояние чужих узлов отсюда не достать иначе, чем снимком.
 
 var _w: World
 var me: int
@@ -83,6 +83,7 @@ func own(n: int) -> Dictionary:
 		"control": s.control, "cpu_pct": s.cpu_load_pct(), "soft": Array(s.soft), "free_slots": s.free_slots(),
 		"access_mode": s.access_mode, "buffer": s.buffer, "down": s.down, "infect": s.max_infect(),
 		"prev_owner": s.prev_owner, "has_found_threat": Stealth.has_found_threat(s),
+		"role": s.role, "role_target": s.role_target, "reconf": s.reconf,
 	}
 
 # --- Своё состояние ---
@@ -98,13 +99,6 @@ func my_agents() -> Array[Dictionary]:
 	for i in Defs.AGENTS_PER_PLAYER:
 		var a: AgentState = Agents.agent_of(_w, me, i)
 		out.append({"idx": i, "node": a.node, "mode": a.mode, "queue": a.queue.duplicate(true)})
-	return out
-
-func my_flows() -> Array[Dictionary]:
-	var out: Array[Dictionary] = []
-	for f in _w.flows:
-		if f.owner == me:
-			out.append({"id": f.id, "src": f.src, "dst": f.dst, "ptype": f.ptype, "rate": f.rate})
 	return out
 
 ## Единственный способ влиять на мир.

@@ -4,10 +4,10 @@ func test_hud_text() -> void:
 	var w: World = TestMaps.eco_fan(0, 0)
 	w.players[0].bank = 123
 	w.players[0].income_hist[0] = 8
-	var t: String = Hud.text_for(w, 0, Defs.PacketType.INIT)
+	var t: String = Hud.text_for(w, 0, Defs.Role.CAPTURE)
 	check(t.contains("123"), t)
 	check(t.contains("+8/с"), t)
-	check(t.contains("INIT"), t)
+	check(t.contains("Захват"), t)
 
 func test_control_fill_and_capture_ring_draw_without_errors() -> void:
 	# Рисование узлов с заливкой, кольцом захвата и буфером не должно давать ошибок скриптов.
@@ -27,7 +27,7 @@ func test_control_fill_and_capture_ring_draw_without_errors() -> void:
 	main.queue_free()
 
 func test_init_mode_key_enabled() -> void:
-	check(Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.INIT))
+	check(Defs.COMBAT_ROLES.has(Defs.Role.CAPTURE))
 	var ic := InputCtl.new()
 	ic.world = TestMaps.pair(200)
 	ic.camera = CameraCtl.new()
@@ -35,11 +35,11 @@ func test_init_mode_key_enabled() -> void:
 	ev.keycode = KEY_Q
 	ev.pressed = true
 	ic._on_key(ev)
-	check_eq(ic.flow_type, Defs.PacketType.INIT)
+	check_eq(ic.role_mode, Defs.Role.CAPTURE)
 	var ev2 := InputEventKey.new()
 	ev2.keycode = KEY_T
 	ev2.pressed = true
 	ic._on_key(ev2)
-	check_eq(ic.flow_type, Defs.PacketType.SCAN)
+	check_eq(ic.role_mode, Defs.Role.WATCH)
 	ic.camera.free()
 	ic.free()

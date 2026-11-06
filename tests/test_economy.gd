@@ -45,7 +45,7 @@ func test_init_captures_neutral_for_defs_count() -> void:
 	var w: World = TestMaps.chain()
 	var target: NodeState = w.nodes[2]
 	check_eq(target.owner, Defs.NEUTRAL)
-	w.submit(Command.start_flow(0, 0, 1, 2, Defs.PacketType.INIT, 20))
+	TestMaps.engage(w, 0, 1, 2, Defs.PacketType.INIT)
 	var needed: int = int(Defs.INIT_NEEDED[Defs.NodeType.MACHINE])
 	var guard: int = 0
 	while target.owner == Defs.NEUTRAL and guard < 600:
@@ -55,12 +55,13 @@ func test_init_captures_neutral_for_defs_count() -> void:
 	check_eq(w.delivered[Defs.PacketType.INIT], needed, "нейтрал должен сдаться ровно за число INIT из defs")
 	check(target.control <= Defs.CAPTURE_START_CONTROL and target.control >= Defs.CAPTURE_START_CONTROL - 1000, "контроль после захвата: %d" % target.control)
 	check_eq(w.players[0].captures, 1)
-	check_eq(w.flows.size(), 0, "поток INIT на захваченный узел должен прекратиться")
+	check_eq(w.nodes[1].role, Defs.Role.WORK, "роль «Захват» после взятия цели возвращается к работе")
 
 func test_denser_init_flow_wins() -> void:
 	var w: World = TestMaps.star()           # узел 2 — нейтрал, к нему подключены оба ядра
-	w.submit(Command.start_flow(0, 0, 0, 2, Defs.PacketType.INIT, 20))
-	w.submit(Command.start_flow(1, 0, 1, 2, Defs.PacketType.INIT, 12))
+	TestMaps.boost(w, 0)                      # ядро с ретранслятором шлёт INIT вдвое плотнее
+	TestMaps.engage(w, 0, 0, 2, Defs.PacketType.INIT)
+	TestMaps.engage(w, 1, 1, 2, Defs.PacketType.INIT)
 	w.run(600)
 	check_eq(w.nodes[2].owner, 0, "узел должен достаться более плотному потоку")
 	check_eq(w.nodes[2].capture[1], 0)
@@ -74,7 +75,7 @@ func test_capture_meter_decays_without_init() -> void:
 
 func test_gateway_captured_with_its_own_count() -> void:
 	var w: World = TestMaps.eco_fan(0, -1)
-	w.submit(Command.start_flow(0, 0, 0, 1, Defs.PacketType.INIT, 20))
+	TestMaps.engage(w, 0, 0, 1, Defs.PacketType.INIT)
 	var guard: int = 0
 	while w.nodes[1].owner == Defs.NEUTRAL and guard < 800:
 		w.step()
@@ -123,8 +124,10 @@ func test_flood_on_own_link_drops_far_machine() -> void:
 	var w: World = TestMaps.chain()
 	Economy.capture_node(w, w.nodes[2], 0)
 	w.run(40)
-	w.submit(Command.start_flow(0, w.tick, 1, 2, Defs.PacketType.FLOOD, 20))   # свой же флуд по линку 1→2
-	w.run(2 * 400 + 200)
+	for i in 2 * 400 + 200:     # свой же флуд по линку 1→2: тестовый двойник забивает порт пакетами
+		for k in 3:
+			Network.inject(w, 1, 2, Defs.PacketType.FLOOD, 0, 0)
+		w.step()
 	check(w.drops[World.DROP_QUEUE] > 0)
 	check_eq(w.nodes[2].owner, Defs.NEUTRAL, "забитый флудом линк должен отрезать дальнюю машину")
 

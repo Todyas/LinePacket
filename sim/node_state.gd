@@ -49,6 +49,11 @@ var soft_off: int = 0                      # тиков осталось, пок
 var sniff_acc: int = 0
 var ids_cool: PackedInt32Array = PackedInt32Array()  # тик последней записи IDS по атакующим
 var auto_sent: int = 0                     # сколько автоматических пакетов (DATA, KEEPALIVE) отправил узел
+# Роль (S9).
+var role: int = Defs.Role.WORK
+var role_target: int = -1                  # цель боевой роли
+var role_acc: int = 0                      # накопитель пакетов роли; у дозора — тики до снимка
+var reconf: int = 0                        # тиков перенастройки осталось: машина ничего не шлёт
 
 func _init() -> void:
 	cpu_hist.resize(Defs.LOAD_WINDOW)
@@ -63,6 +68,15 @@ func _init() -> void:
 	found.resize(Defs.HIDDEN_KIND_COUNT * Defs.MAX_PLAYERS)
 	ids_cool.resize(Defs.MAX_PLAYERS)
 	ids_cool.fill(-1000000)
+
+func reset_role() -> void:
+	role = Defs.Role.WORK
+	role_target = -1
+	role_acc = 0
+	reconf = 0
+
+func is_combat() -> bool:
+	return Defs.COMBAT_ROLES.has(role)
 
 func setup_cpu() -> void:
 	cpu_base = int(Defs.NODE_DEFS[type]["cpu"])
@@ -189,3 +203,7 @@ func hash_into(h: Hasher) -> void:
 	h.add(sniff_acc)
 	h.add(prev_owner)
 	h.add(auto_sent)
+	h.add(role)
+	h.add(role_target)
+	h.add(role_acc)
+	h.add(reconf)

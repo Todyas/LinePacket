@@ -71,8 +71,6 @@ static func attack_name(ptype: int) -> String:
 			return "вирус"
 		Defs.PacketType.INIT:
 			return "подбор доступа"
-		Defs.PacketType.SCAN:
-			return "скан"
 	return "пакеты"
 
 static func link_name(w: World, link_id: int) -> String:

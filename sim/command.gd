@@ -2,7 +2,7 @@ class_name Command
 extends RefCounted
 ## Единственный способ изменить мир. Игрок, бот, сеть и реплей кладут команды в очередь.
 
-enum Type { NOOP, START_FLOW, STOP_FLOW, SET_FLOW_RATE, QUEUE_TASK, CLEAR_QUEUE, ACTIVATE }
+enum Type { NOOP, SET_ROLE, QUEUE_TASK, CLEAR_QUEUE, ACTIVATE }
 
 var type: int = Type.NOOP
 var player: int = 0
@@ -17,14 +17,9 @@ static func make(t: int, p: int, at_tick: int, a: Array = []) -> Command:
 	c.args = a.duplicate()
 	return c
 
-static func start_flow(p: int, at_tick: int, src: int, dst: int, ptype: int, rate: int) -> Command:
-	return make(Type.START_FLOW, p, at_tick, [src, dst, ptype, rate])
-
-static func stop_flow(p: int, at_tick: int, flow_id: int) -> Command:
-	return make(Type.STOP_FLOW, p, at_tick, [flow_id])
-
-static func set_flow_rate(p: int, at_tick: int, flow_id: int, rate: int) -> Command:
-	return make(Type.SET_FLOW_RATE, p, at_tick, [flow_id, rate])
+## Назначить машине роль из Defs.Role; target — узел-цель боевой роли (для остальных -1).
+static func set_role(p: int, at_tick: int, node: int, role: int, target: int = -1) -> Command:
+	return make(Type.SET_ROLE, p, at_tick, [node, role, target])
 
 ## Поставить задачу в очередь агента. Перед выполнением агент сам доедет до узла.
 static func queue_task(p: int, at_tick: int, agent: int, kind: int, node: int, arg: int = 0) -> Command:

@@ -3,18 +3,17 @@ extends Node2D
 ## Ввод игрока: превращает мышь и клавиши в команды. Мир только читает.
 
 const NODE_HIT_RADIUS: float = 32.0
-const FLOW_HIT_PX: float = 14.0
 
 var world: World
 var camera: CameraCtl
 var local_player: int = 0
-var flow_type: int = Defs.PacketType.FLOOD
+## Режим перетаскивания: какую роль получит машина, которую потянули к цели.
+var role_mode: int = Defs.Role.PRESSURE
 var drag_from: int = -1
 var selected_node: int = -1
 var selected_agent: int = 0
 var ring: RingMenu
 var _press_pos: Vector2 = Vector2.ZERO
-var hover_flow: int = -1
 var mouse_world: Vector2 = Vector2.ZERO
 var _panning: bool = false
 var ring_target: int = -1
@@ -26,19 +25,19 @@ var paused: bool = false
 signal pause_toggled
 signal speed_step(dir: int)
 
-## Типы потоков на левой руке: Q W E R T.
+## Роли на левой руке: Q W E R T.
 const MODE_KEYS: Dictionary = {
-	KEY_Q: Defs.PacketType.INIT,
-	KEY_W: Defs.PacketType.FLOOD,
-	KEY_E: Defs.PacketType.PAYLOAD,
-	KEY_R: Defs.PacketType.PAYLOAD_HIDDEN,
-	KEY_T: Defs.PacketType.SCAN,
+	KEY_Q: Defs.Role.CAPTURE,
+	KEY_W: Defs.Role.PRESSURE,
+	KEY_E: Defs.Role.INFECT,
+	KEY_R: Defs.Role.INFECT_HIDDEN,
+	KEY_T: Defs.Role.WATCH,
 }
 
-## Подпись клавиши типа потока.
-static func key_label(ptype: int) -> String:
+## Подпись клавиши режима роли.
+static func key_label(role: int) -> String:
 	for k in MODE_KEYS:
-		if MODE_KEYS[k] == ptype:
+		if MODE_KEYS[k] == role:
 			return OS.get_keycode_string(k)
 	return "?"
 
@@ -52,7 +51,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		mouse_world = camera.screen_to_world(mm.position)
 		if _panning:
 			camera.pan_by(mm.relative)
-		hover_flow = Picking.hit_flow(world, local_player, mouse_world, FLOW_HIT_PX / camera.zoom.x)
 		queue_redraw()
 	elif event is InputEventMouseButton:
 		_on_button(event as InputEventMouseButton)
@@ -72,7 +70,7 @@ func _on_button(mb: InputEventMouseButton) -> void:
 					ring.close()
 				_press_pos = mb.position
 				var nid: int = Picking.hit_node(world, mouse_world, _hit_radius())
-				if nid >= 0 and world.nodes[nid].owner == local_player:
+				if nid >= 0 and world.nodes[nid].owner == local_player and Roles.can_have_role(world.nodes[nid]):
 					drag_from = nid
 				else:
 					_panning = true
@@ -80,11 +78,10 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				_panning = false
 				var is_click: bool = mb.position.distance_to(_press_pos) < 6.0
 				if drag_from >= 0:
-					var target: int = Picking.hit_node(world, mouse_world, _hit_radius())
-					if target >= 0 and target != drag_from:
-						_finish_drag()
-					else:
+					if is_click:
 						selected_node = drag_from
+					else:
+						_finish_drag()
 				elif is_click:
 					selected_node = Picking.hit_node(world, mouse_world, _hit_radius())
 				drag_from = -1
@@ -105,20 +102,19 @@ func _on_button(mb: InputEventMouseButton) -> void:
 			if mb.pressed:
 				_wheel(mb.position, -1)
 
+## Роль по режиму: боевая — на узел под курсором (цель проверяет sim), дозор — сразу на машину.
 func _finish_drag() -> void:
+	if role_mode == Defs.Role.WATCH:
+		submit(Command.set_role(local_player, world.tick, drag_from, Defs.Role.WATCH))
+		selected_node = drag_from
+		return
 	var target: int = Picking.hit_node(world, mouse_world, _hit_radius())
 	if target >= 0 and target != drag_from:
-		submit(Command.start_flow(local_player, world.tick, drag_from, target, flow_type, flow_rate_for(flow_type)))
+		submit(Command.set_role(local_player, world.tick, drag_from, role_mode, target))
+		selected_node = drag_from
 
 func _wheel(screen_pos: Vector2, dir: int) -> void:
-	hover_flow = Picking.hit_flow(world, local_player, mouse_world, FLOW_HIT_PX / camera.zoom.x)
-	if hover_flow >= 0:
-		var f: FlowState = world.get_flow(hover_flow)
-		var nr: int = clampi(f.rate + dir, Defs.FLOW_MIN_RATE, Defs.FLOW_MAX_RATE)
-		if nr != f.rate:
-			submit(Command.set_flow_rate(local_player, world.tick, f.id, nr))
-	else:
-		camera.zoom_at(screen_pos, CameraCtl.ZOOM_STEP if dir > 0 else 1.0 / CameraCtl.ZOOM_STEP)
+	camera.zoom_at(screen_pos, CameraCtl.ZOOM_STEP if dir > 0 else 1.0 / CameraCtl.ZOOM_STEP)
 
 func _on_key(k: InputEventKey) -> void:
 	if not k.pressed or k.echo:
@@ -137,9 +133,7 @@ func _on_key(k: InputEventKey) -> void:
 			pause_toggled.emit()
 		return
 	if MODE_KEYS.has(k.keycode):
-		var t: int = MODE_KEYS[k.keycode]
-		if Defs.PLAYER_FLOW_TYPES.has(t):
-			flow_type = t
+		role_mode = MODE_KEYS[k.keycode]
 	elif k.keycode >= KEY_1 and k.keycode <= KEY_3:
 		selected_agent = k.keycode - KEY_1
 	elif k.keycode == KEY_F2 and OS.is_debug_build():
@@ -153,14 +147,6 @@ func _on_key(k: InputEventKey) -> void:
 			queue_redraw()
 		else:
 			pause_toggled.emit()   # нечего закрывать: Esc открывает паузу
-	elif k.keycode == KEY_X or k.keycode == KEY_DELETE:
-		if hover_flow >= 0:
-			submit(Command.stop_flow(local_player, world.tick, hover_flow))
-			hover_flow = -1
-
-## Скан — разовый: поток сам заканчивается, когда скан дошёл.
-static func flow_rate_for(ptype: int) -> int:
-	return Defs.SCAN_FLOW_RATE if ptype == Defs.PacketType.SCAN else Defs.FLOW_DEFAULT_RATE
 
 ## Отладка (только в debug-сборке): переключиться на другую сторону, чтобы играть за обоих.
 func switch_side() -> void:
@@ -168,7 +154,6 @@ func switch_side() -> void:
 	selected_node = -1
 	selected_agent = 0
 	drag_from = -1
-	hover_flow = -1
 	if ring != null:
 		ring.close()
 	queue_redraw()
@@ -179,8 +164,10 @@ func apply_item(item: Dictionary) -> void:
 		submit(Command.queue_task(local_player, world.tick, selected_agent, int(item["task"]), ring_target, int(item["arg"])))
 	elif item["kind"] == "activate":
 		submit(Command.activate(local_player, world.tick, ring_target, int(item["mode"])))
-	elif item["kind"] == "flow" and ring_source >= 0:
-		submit(Command.start_flow(local_player, world.tick, ring_source, ring_target, int(item["flow_type"]), flow_rate_for(int(item["flow_type"]))))
+	elif item["kind"] == "role" and ring_source >= 0:
+		submit(Command.set_role(local_player, world.tick, ring_source, int(item["role"]), ring_target))
+	elif item["kind"] == "own_role":
+		submit(Command.set_role(local_player, world.tick, ring_target, int(item["role"])))
 
 func submit(cmd: Command) -> void:
 	world.submit(cmd)

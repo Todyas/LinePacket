@@ -100,17 +100,21 @@ func test_bot_yields_contested_neutral_instead_of_deadlocking() -> void:
 		"links": [TestMaps.link(0, 1), TestMaps.link(1, 2), TestMaps.link(2, 3)],
 	})
 	var bot := Bot.new(BotView.new(w, 0), 1)
-	w.submit(Command.start_flow(1, 0, 3, 1, Defs.PacketType.INIT, 12))
+	w.submit(Command.set_role(1, 0, 3, Defs.Role.CAPTURE, 1))   # оба начинают одновременно
 	for i in 20 * 25:
 		bot.act()
 		w.step()
 	check_eq(w.nodes[1].owner, Defs.NEUTRAL, "спор: никто не взял за 25 с")
-	var bot_init: int = 0
-	for f in w.flows:
-		if f.owner == 0 and f.ptype == Defs.PacketType.INIT:
-			bot_init += 1
+	var bot_init: int = _capture_roles_on(w, 0, 1)
 	check(bot_init > 0, "бот пока бьёт в цель")
 	for i in 20 * 50:
 		bot.act()
 		w.step()
 	check_eq(w.nodes[1].owner, 1, "бот уступил, соперник взял узел")
+
+func _capture_roles_on(w: World, player: int, target: int) -> int:
+	var c: int = 0
+	for n in w.nodes:
+		if n.owner == player and n.role == Defs.Role.CAPTURE and n.role_target == target:
+			c += 1
+	return c

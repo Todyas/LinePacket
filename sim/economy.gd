@@ -58,8 +58,8 @@ static func emit(w: World) -> void:
 	for n in w.nodes:
 		if n.owner < 0 or n.down:
 			continue    # лежащая машина не шлёт ни DATA, ни KEEPALIVE
-		if n.type != Defs.NodeType.GATEWAY and n.type != Defs.NodeType.SWITCH:
-			_produce_and_send_data(w, n)
+		if Roles.can_have_role(n) and n.reconf <= 0 and not n.is_combat():
+			_produce_and_send_data(w, n)    # DATA рождает только «Работа» (и «Дозор» вполсилы)
 		if n.supplier >= 0:
 			n.ka_acc += Defs.KEEPALIVE_RATE
 			while n.ka_acc >= Defs.TICK_HZ:
@@ -72,6 +72,8 @@ static func emit(w: World) -> void:
 static func _produce_and_send_data(w: World, n: NodeState) -> void:
 	var limit: int = buffer_limit(n)
 	var data_pct: int = Defs.RELAY_DATA_PERCENT if n.soft_active(Defs.SoftType.RELAY) else 100
+	if n.role == Defs.Role.WATCH:
+		data_pct = data_pct * Defs.WATCH_DATA_PERCENT / 100
 	n.produce_acc += Defs.DATA_RATE * data_pct / 100
 	while n.produce_acc >= Defs.TICK_HZ:
 		n.produce_acc -= Defs.TICK_HZ
@@ -151,6 +153,7 @@ static func release_node(w: World, n: NodeState) -> void:
 	n.clear_threats()
 	n.prev_owner = -1
 	n.down = false
+	n.reset_role()
 	Agents.on_node_lost(w, n.id, old_owner)
 	Knowledge.log_event(w, old_owner, Knowledge.EventKind.NODE_LOST, n.id)
 	n.control = 0
@@ -202,17 +205,10 @@ static func capture_node(w: World, node: NodeState, owner: int) -> void:
 	node.reset_access()
 	node.clear_threats()
 	node.prev_owner = -1
+	node.reset_role()
 	w.players[owner].captures += 1
 	w.routes_dirty = true
 	Knowledge.log_event(w, owner, Knowledge.EventKind.NODE_CAPTURED, node.id)
-	# Потоки INIT на этот узел больше не нужны.
-	var i: int = 0
-	while i < w.flows.size():
-		var f: FlowState = w.flows[i]
-		if f.ptype == Defs.PacketType.INIT and f.dst == node.id and f.owner == owner:
-			w.flows.remove_at(i)
-		else:
-			i += 1
 
 ## INIT на чужую машину подбирает пароль: слабый сдаётся быстро, сильный медленно, ключи никак.
 static func _brute_force(_w: World, node: NodeState, attacker: int) -> void:
@@ -248,6 +244,7 @@ static func takeover(w: World, node: NodeState, attacker: int) -> void:
 	node.access_mask |= 1 << attacker
 	node.capture.fill(0)
 	node.ka_acc = 0
+	node.reset_role()
 	w.players[attacker].captures += 1
 	w.routes_dirty = true
 	Agents.on_node_lost(w, node.id, old)

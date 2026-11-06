@@ -7,25 +7,32 @@ signal chosen(item: Dictionary)
 var _buttons: Array[Button] = []
 var is_open: bool = false
 
-## С какого узла пойдут потоки из меню: выбранный свой узел, а если выбора нет, то ближайший к цели свой (по линкам).
-## Так меню не зависит от того, успел ли игрок кликнуть по узлу левой кнопкой.
+## Какая машина получит боевую роль из меню: выбранная своя, а если выбора нет или цель ей не по дальности,
+## ближайшая своя машина в пределах Defs.ROLE_MAX_HOPS. Так меню не зависит от того, успел ли игрок кликнуть узел.
 static func source_for(w: World, player: int, selected_node: int, target: int) -> int:
 	if target < 0:
 		return selected_node
-	if selected_node >= 0 and selected_node != target and w.nodes[selected_node].owner == player:
+	if selected_node >= 0 and selected_node != target and _can_serve(w, player, selected_node, target):
 		return selected_node
 	var best: int = -1
 	var best_hops: int = 1000000
 	for n in w.nodes:
-		if n.owner != player or n.id == target:
+		if n.id == target or not _can_serve(w, player, n.id, target):
 			continue
 		var h: int = Knowledge.hops(w, n.id, target)
-		if h >= 0 and h < best_hops:
+		if h < best_hops:
 			best_hops = h
 			best = n.id
 	return best
 
-## Пункты меню: [{label, kind: "task"|"flow", task: вид, arg, flow_type}]. Чистая функция — тестируется без сцены.
+static func _can_serve(w: World, player: int, node_id: int, target: int) -> bool:
+	var n: NodeState = w.nodes[node_id]
+	if n.owner != player or not Roles.can_have_role(n):
+		return false
+	var h: int = Knowledge.hops(w, node_id, target)
+	return h >= 1 and h <= Defs.ROLE_MAX_HOPS
+
+## Пункты меню: [{label, kind: "task"|"role"|"own_role"|"activate"|"info", task: вид, arg, role}]. Чистая функция — тестируется без сцены.
 static func items_for(w: World, player: int, selected_node: int, target: int) -> Array[Dictionary]:
 	var items: Array[Dictionary] = _collect(w, player, selected_node, target)
 	if items.is_empty() and target >= 0:
@@ -37,7 +44,7 @@ static func _info_item(w: World, player: int, target: int) -> Dictionary:
 	if t.type == Defs.NodeType.SWITCH:
 		return {"label": "Свич: действий нет", "kind": "info", "hint": "Свич ничей, только пересылает пакеты."}
 	if Knowledge.owner_of(w, player, target) == Knowledge.UNKNOWN_OWNER:
-		return {"label": "Нет данных: нужен скан", "kind": "info", "hint": "Узел вне видимости. Скан (T) достаёт на %d хопа от вашего узла." % Defs.SCAN_MAX_HOPS}
+		return {"label": "Нет данных: нужен дозор", "kind": "info", "hint": "Узел вне видимости. Дозор (T) обновляет снимки в радиусе %d хопов от машины." % Defs.WATCH_RADIUS}
 	return {"label": "Действий нет", "kind": "info", "hint": "Для этого узла сейчас нечего делать."}
 
 static func _collect(w: World, player: int, selected_node: int, target: int) -> Array[Dictionary]:
@@ -48,6 +55,11 @@ static func _collect(w: World, player: int, selected_node: int, target: int) -> 
 	# Всё, что не своё, игрок знает только по снимку: меню строится по знаниям, а не по истине.
 	var k_owner: int = Knowledge.owner_of(w, player, target)
 	var sn: NodeSnap = Knowledge.snap(w, player, target)
+	if t.owner == player and Roles.can_have_role(t):
+		if t.role != Defs.Role.WORK:
+			items.append({"label": "Роль: Работа", "kind": "own_role", "role": Defs.Role.WORK})
+		if t.role != Defs.Role.WATCH:
+			items.append({"label": "Роль: Дозор", "kind": "own_role", "role": Defs.Role.WATCH})
 	if t.owner == player and t.type != Defs.NodeType.SWITCH:
 		items.append({"label": "Агент сюда", "kind": "task", "task": Defs.TaskKind.MOVE, "arg": 0})
 		var pw: Array = Agents.task_params(Defs.TaskKind.CHANGE_PASSWORD, 0)
@@ -77,20 +89,17 @@ static func _collect(w: World, player: int, selected_node: int, target: int) -> 
 		if t.prev_owner == player and t.owner != player:
 			var rp: Array = Agents.task_params(Defs.TaskKind.ENTRENCH, 0)
 			items.append({"label": "Вернуть машину (%d Б, %d с)" % [rp[1], int(rp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.ENTRENCH, "arg": 0})
-	if selected_node >= 0 and selected_node != target and w.nodes[selected_node].owner == player:
-		if k_owner == Defs.NEUTRAL and Defs.INIT_NEEDED.has(t.type) and Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.INIT):
-			items.append({"label": "Захватить (INIT)", "kind": "flow", "flow_type": Defs.PacketType.INIT})
-		if k_owner != Knowledge.UNKNOWN_OWNER and k_owner != player and t.type != Defs.NodeType.SWITCH and Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.FLOOD):
-			items.append({"label": "Флуд (FLOOD)", "kind": "flow", "flow_type": Defs.PacketType.FLOOD})
+	# Боевые роли: selected_node здесь — машина-исполнитель (её выбирает source_for).
+	if selected_node >= 0 and selected_node != target and _can_serve(w, player, selected_node, target):
+		if k_owner == Defs.NEUTRAL and Defs.INIT_NEEDED.has(t.type):
+			items.append({"label": "Захват (INIT)", "kind": "role", "role": Defs.Role.CAPTURE})
 		if k_owner >= 0 and k_owner != player and t.type != Defs.NodeType.SWITCH:
-			items.append({"label": "Вирус (PAYLOAD)", "kind": "flow", "flow_type": Defs.PacketType.PAYLOAD})
+			items.append({"label": "Давление (FLOOD)", "kind": "role", "role": Defs.Role.PRESSURE})
+			items.append({"label": "Заражение (PAYLOAD)", "kind": "role", "role": Defs.Role.INFECT})
 			if sn != null and not sn.my_virus:
-				items.append({"label": "Скрытый вирус (%d Б/пакет)" % Defs.PAYLOAD_HIDDEN_COST_BYTES, "kind": "flow", "flow_type": Defs.PacketType.PAYLOAD_HIDDEN})
+				items.append({"label": "Тайное заражение (%d Б/пакет)" % Defs.PAYLOAD_HIDDEN_COST_BYTES, "kind": "role", "role": Defs.Role.INFECT_HIDDEN})
 			if sn != null and sn.access_mode != Defs.AccessMode.KEYS and not sn.my_access:
-				items.append({"label": "Подбор пароля (INIT)", "kind": "flow", "flow_type": Defs.PacketType.INIT})
-		var hp: int = Knowledge.hops(w, selected_node, target)
-		if k_owner != player and hp >= 1 and hp <= Defs.SCAN_MAX_HOPS and Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.SCAN):
-			items.append({"label": "Скан (SCAN, до %d хопов)" % Defs.SCAN_MAX_HOPS, "kind": "flow", "flow_type": Defs.PacketType.SCAN})
+				items.append({"label": "Подбор пароля (INIT)", "kind": "role", "role": Defs.Role.CAPTURE})
 	return items
 
 func open(screen_pos: Vector2, items: Array[Dictionary]) -> void:

@@ -10,8 +10,6 @@ static func packet_type(t: int) -> String:
 			return "KEEPALIVE: сигнал «я жив». Каждый пакет прибавляет контроль машине; без него контроль тает."
 		Defs.PacketType.INIT:
 			return "INIT: захват нейтральной машины или шлюза. Против чужой машины подбирает пароль (ключи не подбираются)."
-		Defs.PacketType.SCAN:
-			return "SCAN: разведка. Показывает состояние цели и её соседей (до %d хопов). Достаточно одного пакета." % Defs.SCAN_MAX_HOPS
 		Defs.PacketType.FLOOD:
 			return "FLOOD: забивает CPU цели. Перегруженная машина «ложится»: не шлёт байты, ПО не работает, её легче заразить."
 		Defs.PacketType.PAYLOAD:
@@ -35,7 +33,7 @@ static func soft(s: int) -> String:
 		Defs.SoftType.STORAGE:
 			return "Хранилище: буфер машины больше на %d байт." % Defs.STORAGE_BUFFER_BONUS
 		Defs.SoftType.RELAY:
-			return "Ретранслятор: исходящие потоки идут на %d%% быстрее, но собственных DATA машина шлёт %d%%." % [Defs.RELAY_FLOW_PERCENT, Defs.RELAY_DATA_PERCENT]
+			return "Ретранслятор: боевая мощность машины %d%%, но собственных DATA машина шлёт %d%%." % [Defs.RELAY_COMBAT_PERCENT, Defs.RELAY_DATA_PERCENT]
 	return ""
 
 static func task(kind: int, arg: int = 0) -> String:
@@ -67,8 +65,8 @@ static func ring_item(item: Dictionary) -> String:
 			return String(item.get("hint", ""))
 		"task":
 			return task(int(item["task"]), int(item.get("arg", 0)))
-		"flow":
-			return packet_type(int(item["flow_type"]))
+		"role", "own_role":
+			return role(int(item["role"]))
 		"activate":
 			if int(item["mode"]) == Defs.ActivateMode.TAKEOVER:
 				return "Перехват: машина становится вашей за один тик. Вирус расходуется."
@@ -81,7 +79,7 @@ static func node(w: World, viewer: int, node_id: int) -> String:
 	var lines: Array[String] = []
 	var lvl: int = Knowledge.level(w, viewer, node_id) if viewer >= 0 else Knowledge.Level.OBSERVED
 	if lvl == Knowledge.Level.SILHOUETTE:
-		return "%s: %s\nНеизвестно. Скан (клавиша T) покажет." % [Names.node_label(n), Names.node_type(n.type)]
+		return "%s: %s\nНеизвестно. Дозор (клавиша T) покажет." % [Names.node_label(n), Names.node_type(n.type)]
 	var owner_id: int = Knowledge.owner_of(w, viewer, node_id) if viewer >= 0 else n.owner
 	lines.append("%s: %s, %s" % [Names.node_label(n), Names.node_type(n.type), Names.owner_name(owner_id)])
 	match n.type:
@@ -93,6 +91,9 @@ static func node(w: World, viewer: int, node_id: int) -> String:
 			lines.append("Машина: производит DATA и KEEPALIVE.")
 		Defs.NodeType.SWITCH:
 			lines.append("Свич: ничей, только пересылает пакеты.")
+	var rl: String = role_line(w, viewer, node_id)
+	if rl != "":
+		lines.append(rl)
 	var shown: Array[int] = visible_soft(w, viewer, node_id)
 	for t in shown:
 		lines.append(soft(t))
@@ -100,10 +101,44 @@ static func node(w: World, viewer: int, node_id: int) -> String:
 		lines.append("Снимок, данные %d с назад." % (Knowledge.age(w, viewer, node_id) / Defs.TICK_HZ))
 	return "\n".join(lines)
 
-## Подсказка по потоку игрока.
-static func flow(f: FlowState) -> String:
-	return "Поток %s, %d пак/с.\n%s\nКолесо мыши — скорость, X — остановить." % [
-		Hud.flow_type_name(f.ptype).split(" ")[0], f.rate, packet_type(f.ptype)]
+## Что делает роль машины.
+static func role(r: int) -> String:
+	match r:
+		Defs.Role.WORK:
+			return "Работа: машина шлёт DATA в свой шлюз, это доход (%d Б/с). Боевая машина дохода не даёт." % Defs.DATA_RATE
+		Defs.Role.CAPTURE:
+			return "Захват: машина шлёт INIT. Нейтрала берёт целиком, на чужой машине подбирает пароль. Цель в пределах %d хопов." % Defs.ROLE_MAX_HOPS
+		Defs.Role.PRESSURE:
+			return "Давление: машина шлёт FLOOD и забивает CPU цели, пока та не ляжет. Несколько машин на одной цели складываются."
+		Defs.Role.INFECT:
+			return "Заражение: машина шлёт PAYLOAD (%d Б за пакет), растёт шкала заражения цели." % Defs.PAYLOAD_COST_BYTES
+		Defs.Role.INFECT_HIDDEN:
+			return "Тайное заражение: %d Б за пакет, медленнее; в итоге тайный вирус, владелец ничего не видит." % Defs.PAYLOAD_HIDDEN_COST_BYTES
+		Defs.Role.WATCH:
+			return "Дозор: машина обновляет снимки узлов в радиусе %d хопов раз в %d с и даёт %d%% дохода." % [Defs.WATCH_RADIUS, Defs.WATCH_INTERVAL_TICKS / Defs.TICK_HZ, Defs.WATCH_DATA_PERCENT]
+	return ""
+
+## Строка «Роль: ... → цель» для узла глазами игрока; пусто, если роли нет или она неизвестна.
+static func role_line(w: World, viewer: int, node_id: int) -> String:
+	var n: NodeState = w.nodes[node_id]
+	if not Roles.can_have_role(n):
+		return ""
+	var r: int = n.role
+	var tg: int = n.role_target
+	if viewer >= 0:
+		var sn: NodeSnap = Knowledge.snap(w, viewer, node_id)
+		if sn == null or sn.owner < 0:
+			return ""
+		r = sn.role
+		tg = sn.role_target
+	elif n.owner < 0:
+		return ""
+	var txt: String = "Роль: %s" % Defs.ROLE_NAMES[r]
+	if tg >= 0:
+		txt += " → %s" % Names.node_label(w.nodes[tg])
+	if n.reconf > 0 and (viewer < 0 or n.owner == viewer):
+		txt += " (перенастройка %d с)" % ((n.reconf + Defs.TICK_HZ - 1) / Defs.TICK_HZ)
+	return txt
 
 ## ПО узла, которое игрок знает: по снимку для неналюдаемых, по наблюдению для остальных.
 static func visible_soft(w: World, viewer: int, node_id: int) -> Array[int]:

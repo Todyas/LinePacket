@@ -36,13 +36,16 @@ static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
 	if viewer >= 0:
 		var lvl: int = Knowledge.level(w, viewer, node_id)
 		if lvl == Knowledge.Level.SILHOUETTE:
-			return "%s — %s\nДанных нет: узел за пределами видимости.\nСкан (клавиша T, ПКМ) покажет его состояние." % [Names.node_label(w.nodes[node_id]), Names.node_type(w.nodes[node_id].type)]
+			return "%s — %s\nДанных нет: узел за пределами видимости.\nДозор (клавиша T) покажет его состояние." % [Names.node_label(w.nodes[node_id]), Names.node_type(w.nodes[node_id].type)]
 		if lvl == Knowledge.Level.SNAPSHOT:
 			return _snapshot_text(w, node_id, viewer)
 	var n: NodeState = w.nodes[node_id]
 	var lines: Array[String] = []
 	lines.append("%s — %s" % [Names.node_label(n), Names.node_type(n.type)])
 	lines.append("Владелец: %s" % Names.owner_name(n.owner))
+	var role_txt: String = Hints.role_line(w, viewer, node_id)
+	if role_txt != "":
+		lines.append(role_txt)
 	if n.type == Defs.NodeType.SWITCH:
 		lines.append("Нейтральная инфраструктура")
 		lines.append("CPU: %d%%" % n.cpu_load_pct())
@@ -95,6 +98,12 @@ static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
 	return "\n".join(lines)
 
 
+static func _role_text(role: int, target: int, w: World) -> String:
+	var txt: String = "Роль: %s" % Defs.ROLE_NAMES[role]
+	if target >= 0:
+		txt += " → %s" % Names.node_label(w.nodes[target])
+	return txt
+
 static func _snapshot_text(w: World, node_id: int, viewer: int) -> String:
 	var n: NodeState = w.nodes[node_id]
 	var sn: NodeSnap = Knowledge.snap(w, viewer, node_id)
@@ -102,6 +111,8 @@ static func _snapshot_text(w: World, node_id: int, viewer: int) -> String:
 	lines.append("%s — %s" % [Names.node_label(n), Names.node_type(n.type)])
 	lines.append("СНИМОК: данные %d с назад" % (Knowledge.age(w, viewer, node_id) / Defs.TICK_HZ))
 	lines.append("Владелец: %s" % Names.owner_name(sn.owner))
+	if sn.owner >= 0 and (n.type == Defs.NodeType.MACHINE or n.type == Defs.NodeType.CORE):
+		lines.append(_role_text(sn.role, sn.role_target, w))
 	if n.type == Defs.NodeType.SWITCH:
 		return "\n".join(lines)
 	if sn.owner >= 0:

@@ -62,7 +62,7 @@ func test_end_screen_text() -> void:
 	check(EndScreen.text_for(w, 1).contains("ПОБЕДА"))
 
 func test_hud_names_payload_mode() -> void:
-	check_eq(Hud.flow_type_name(Defs.PacketType.PAYLOAD), "PAYLOAD [E]")
+	check_eq(Hud.role_mode_name(Defs.Role.INFECT), "Заражение [E]")
 
 func test_attack_meters_and_end_screen_draw_without_errors() -> void:
 	var w: World = TestMaps.siege()

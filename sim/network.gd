@@ -12,7 +12,7 @@ static func step(w: World) -> void:
 		n.cpu_credit = mini(n.cpu_credit + n.cpu_per_s, n.cpu_per_s * Defs.BURST_TICKS)
 	Economy.begin_tick(w)
 	_process_arrivals(w)
-	_emit_flows(w)
+	Roles.step(w)
 	Economy.emit(w)
 	Agents.step(w)
 	_drain_ports(w)
@@ -131,33 +131,6 @@ static func _firewall_blocks(w: World, n: NodeState, idx: int) -> bool:
 		return true
 	n.fw_credit -= Defs.TICK_HZ
 	return false
-
-static func _emit_flows(w: World) -> void:
-	var i: int = 0
-	while i < w.flows.size():
-		var f: FlowState = w.flows[i]
-		var src: NodeState = w.nodes[f.src]
-		if src.owner != f.owner:
-			# Источник потерян — поток прекращается.
-			w.flows.remove_at(i)
-			continue
-		if src.down:
-			i += 1
-			continue    # машина лежит: потоки не идут
-		var pct: int = Defs.RELAY_FLOW_PERCENT if src.soft_active(Defs.SoftType.RELAY) else 100
-		f.acc += f.rate * pct / 100
-		while f.acc >= Defs.TICK_HZ:
-			f.acc -= Defs.TICK_HZ
-			var pl: PlayerState = w.players[f.owner]
-			var cost: int = Defs.flow_byte_cost(f.ptype)
-			if pl.bank < cost:
-				continue    # PAYLOAD стоит байты: без них пакет не рождается
-			if not src.spend_cpu(Defs.CPU_COST_EMIT):
-				w.drops[World.DROP_CPU] += 1
-				continue
-			pl.bank -= cost
-			inject(w, f.src, f.dst, f.ptype, f.owner, f.id)
-		i += 1
 
 static func _drain_ports(w: World) -> void:
 	var pool: PacketPool = w.pool

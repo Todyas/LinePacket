@@ -2,7 +2,7 @@ class_name Knowledge
 extends RefCounted
 ## Карта знаний игрока. Это единственный честный способ прочитать мир «глазами игрока»:
 ## view и бот ходят сюда, а не в NodeState напрямую.
-## Уровни: силуэт (стартовая топология), снимок (SCAN или давнее наблюдение), наблюдение (свои узлы и соседние).
+## Уровни: силуэт (стартовая топология), снимок (дозор или давнее наблюдение), наблюдение (свои узлы и соседние).
 
 enum Level { SILHOUETTE, SNAPSHOT, OBSERVED }
 enum EventKind { IDS_ATTACK, NODE_CAPTURED, NODE_LOST, NODE_DOWN, HIDDEN_FOUND, AGENT_SEEN }
@@ -56,14 +56,27 @@ static func update(w: World) -> void:
 			if k.observed[n.id] == 1:
 				k.snaps[n.id] = NodeSnap.capture(n, p, w.tick)
 
-## SCAN дошёл до узла: снимок узла и его соседей на момент прибытия.
-static func scan(w: World, player: int, node_id: int) -> void:
+## Дозор: снимок узла-источника и всех узлов в радиусе radius линков на момент вызова.
+static func watch(w: World, player: int, node_id: int, radius: int) -> void:
 	ensure(w)
 	var k: Knowledge = w.know[player]
-	k.snaps[node_id] = NodeSnap.capture(w.nodes[node_id], player, w.tick)
-	for lid in w.nodes[node_id].links:
-		var o: int = w.links[lid].other(node_id)
-		k.snaps[o] = NodeSnap.capture(w.nodes[o], player, w.tick)
+	var dist := PackedInt32Array()
+	dist.resize(w.nodes.size())
+	dist.fill(-1)
+	dist[node_id] = 0
+	var queue: Array[int] = [node_id]
+	var head: int = 0
+	while head < queue.size():
+		var v: int = queue[head]
+		head += 1
+		k.snaps[v] = NodeSnap.capture(w.nodes[v], player, w.tick)
+		if dist[v] >= radius:
+			continue
+		for lid in w.nodes[v].links:
+			var u: int = w.links[lid].other(v)
+			if dist[u] < 0:
+				dist[u] = dist[v] + 1
+				queue.append(u)
 
 static func log_event(w: World, player: int, kind: int, node: int, link: int = -1, ptype: int = -1) -> void:
 	if player < 0 or player >= w.players.size():

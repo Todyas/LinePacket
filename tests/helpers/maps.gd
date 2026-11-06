@@ -145,3 +145,46 @@ static func scout(seed_value: int = 1) -> World:
 		],
 		"links": [link(0, 1), link(1, 2), link(2, 3), link(0, 4), link(4, 5), link(5, 3)],
 	}, seed_value)
+
+
+## --- Роли в тестах (тестовые двойники, не часть игры) ---
+
+static func role_for(ptype: int) -> int:
+	match ptype:
+		Defs.PacketType.INIT:
+			return Defs.Role.CAPTURE
+		Defs.PacketType.FLOOD:
+			return Defs.Role.PRESSURE
+		Defs.PacketType.PAYLOAD:
+			return Defs.Role.INFECT
+		Defs.PacketType.PAYLOAD_HIDDEN:
+			return Defs.Role.INFECT_HIDDEN
+	return Defs.Role.WORK
+
+## Боевая роль сразу, без перенастройки: как будто игрок назначил её 5 секунд назад.
+static func engage(w: World, player: int, src: int, dst: int, ptype: int) -> void:
+	var ok: bool = Roles.apply_set_role(w, player, [src, role_for(ptype), dst])
+	assert(ok, "роль не назначена: %d → %d" % [src, dst])
+	w.nodes[src].reconf = 0
+
+## Ретранслятор удваивает боевую мощность машины.
+static func boost(w: World, node: int) -> void:
+	w.nodes[node].install_soft(Defs.SoftType.RELAY)
+
+## Снять боевую роль: машина возвращается к работе.
+static func stand_down(w: World, node: int) -> void:
+	w.nodes[node].reset_role()
+
+## Источник пакетов для тестов сети: per_s пакетов в секунду от src к dst, ticks тиков (шаги мира включены).
+## Заменяет прежние потоки; сами пакеты рождаются так же, как у роли: Network.inject от имени владельца src.
+static func pump(w: World, srcs: Array, dst_of: Array, ptype: int, per_s: int, ticks: int) -> void:
+	var acc: Array[int] = []
+	for i in srcs.size():
+		acc.append(0)
+	for t in ticks:
+		for i in srcs.size():
+			acc[i] += per_s
+			while acc[i] >= Defs.TICK_HZ:
+				acc[i] -= Defs.TICK_HZ
+				Network.inject(w, srcs[i], dst_of[i], ptype, w.nodes[srcs[i]].owner, 0)
+		w.step()

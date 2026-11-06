@@ -47,7 +47,7 @@ func _process(delta: float) -> void:
 		_panel.visible = false
 		return
 	var txt: String = text_at(world, viewer, input_ctl.local_player, pos, camera.screen_to_world(pos),
-		camera.zoom.x, input_ctl.flow_type, input_ctl.selected_node)
+		camera.zoom.x, input_ctl.role_mode, input_ctl.selected_node)
 	if txt == "":
 		_panel.visible = false
 		return
@@ -66,9 +66,9 @@ func show_text(txt: String, pos: Vector2) -> void:
 
 ## Текст подсказки для точки экрана. Чистая функция: тестируется без сцены.
 static func text_at(w: World, viewer: int, player: int, screen_pos: Vector2, world_pos: Vector2, zoom: float,
-		flow_type: int, selected_node: int) -> String:
+		role_mode: int, selected_node: int) -> String:
 	if screen_pos.y < HUD_HEIGHT:
-		return "Тип потока для перетаскивания. Сменить: Q W E R T.\n" + Hints.packet_type(flow_type)
+		return "Режим перетаскивания: машину тянете к цели. Сменить: Q W E R T.\n" + Hints.role(role_mode)
 	if screen_pos.y >= AGENT_TOP:
 		var i: int = int((screen_pos.x - 14.0) / 520.0)
 		if i < 0 or i >= Defs.AGENTS_PER_PLAYER:
@@ -79,9 +79,6 @@ static func text_at(w: World, viewer: int, player: int, screen_pos: Vector2, wor
 	var nid: int = Picking.hit_node(w, world_pos, InputCtl.NODE_HIT_RADIUS / zoom)
 	if nid >= 0:
 		return Hints.node(w, viewer, nid)
-	var fid: int = Picking.hit_flow(w, player, world_pos, InputCtl.FLOW_HIT_PX / zoom)
-	if fid >= 0:
-		return Hints.flow(w.get_flow(fid))
 	return ""
 
 static func agent_tip(w: World, player: int, idx: int) -> String:

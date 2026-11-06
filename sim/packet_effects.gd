@@ -17,8 +17,5 @@ static func deliver(w: World, node: NodeState, idx: int) -> void:
 			Economy.on_payload(w, node, owner)
 		Defs.PacketType.PAYLOAD_HIDDEN:
 			Stealth.on_payload_hidden(w, node, owner)
-		Defs.PacketType.SCAN:
-			Knowledge.scan(w, owner, node.id)
-			w.remove_flow(w.pool.flow[idx])   # один поток — один скан
 		Defs.PacketType.FLOOD:
 			pass   # эффект флуда — плата CPU цели за прибытие, уже списана

@@ -51,21 +51,21 @@ func _process(_delta: float) -> bool:
 	return false
 
 func _setup_scenario() -> void:
-	# Демонстрационные потоки — как если бы игроки запустили их мышью.
+	# Демонстрационные роли — как если бы игроки назначили их мышью.
 	var w: World = _main.world
 	match _scenario:
 		"eco":
-			w.submit(Command.start_flow(0, 0, 0, 2, Defs.PacketType.INIT, 12))
-			w.submit(Command.start_flow(0, 0, 1, 3, Defs.PacketType.INIT, 12))
-			w.submit(Command.start_flow(0, 300, 1, 4, Defs.PacketType.INIT, 20))
-			w.submit(Command.start_flow(0, 400, 2, 5, Defs.PacketType.INIT, 6))
-			w.submit(Command.start_flow(1, 0, 10, 12, Defs.PacketType.INIT, 12))
-			w.submit(Command.start_flow(1, 0, 11, 13, Defs.PacketType.INIT, 12))
-			w.submit(Command.start_flow(1, 100, 11, 14, Defs.PacketType.INIT, 9))
+			w.submit(Command.set_role(0, 0, 0, Defs.Role.CAPTURE, 2))
+			w.submit(Command.set_role(0, 0, 1, Defs.Role.CAPTURE, 3))
+			w.submit(Command.set_role(0, 300, 1, Defs.Role.CAPTURE, 4))
+			w.submit(Command.set_role(0, 400, 2, Defs.Role.CAPTURE, 5))
+			w.submit(Command.set_role(1, 0, 10, Defs.Role.CAPTURE, 12))
+			w.submit(Command.set_role(1, 0, 11, Defs.Role.CAPTURE, 13))
+			w.submit(Command.set_role(1, 100, 11, Defs.Role.CAPTURE, 14))
 		"ui":
 			w.players[0].bank = 150
-			w.submit(Command.start_flow(0, 0, 0, 2, Defs.PacketType.INIT, 20))
-			w.submit(Command.start_flow(0, 0, 1, 3, Defs.PacketType.INIT, 20))
+			w.submit(Command.set_role(0, 0, 0, Defs.Role.CAPTURE, 2))
+			w.submit(Command.set_role(0, 0, 1, Defs.Role.CAPTURE, 3))
 			w.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.INSTALL_SOFT, 1, Defs.SoftType.FIREWALL))
 			w.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.SET_KEYS, 2))
 			w.submit(Command.queue_task(0, 0, 1, Defs.TaskKind.CHANGE_PASSWORD, 3))
@@ -73,9 +73,9 @@ func _setup_scenario() -> void:
 			_main.input_ctl.selected_node = 2
 			_main.input_ctl.selected_agent = 1
 		"fog":
-			# Скан до границы тумана: снимки соседей цели рядом с силуэтами остальной карты.
-			w.submit(Command.start_flow(0, 0, 0, 5, Defs.PacketType.SCAN, 4))
-			w.submit(Command.start_flow(0, 0, 0, 2, Defs.PacketType.INIT, 20))
+			# Дозор до границы тумана: снимки соседей цели рядом с силуэтами остальной карты.
+			w.submit(Command.set_role(0, 0, 0, Defs.Role.WATCH))
+			w.submit(Command.set_role(0, 0, 0, Defs.Role.CAPTURE, 2))
 			_main.input_ctl.selected_node = 5
 		"war":
 			# Витрина шкал атаки: заражение, подбор пароля, лежащая машина, экран итогов.
@@ -90,7 +90,7 @@ func _setup_scenario() -> void:
 			w.winner = 1
 			w.finished_tick = 20 * 342
 		_:
-			w.submit(Command.start_flow(0, 0, 0, 22, Defs.PacketType.FLOOD, 12))
-			w.submit(Command.start_flow(0, 0, 1, 17, Defs.PacketType.FLOOD, 20))
-			w.submit(Command.start_flow(0, 0, 0, 20, Defs.PacketType.FLOOD, 20))
-			w.submit(Command.start_flow(1, 0, 10, 4, Defs.PacketType.FLOOD, 8))
+			w.submit(Command.set_role(0, 0, 0, Defs.Role.PRESSURE, 22))
+			w.submit(Command.set_role(0, 0, 1, Defs.Role.PRESSURE, 17))
+			w.submit(Command.set_role(0, 0, 0, Defs.Role.PRESSURE, 20))
+			w.submit(Command.set_role(1, 0, 10, Defs.Role.PRESSURE, 4))
