@@ -21,6 +21,10 @@ func player_count() -> int:
 func node_count() -> int:
 	return _w.nodes.size()
 
+## Метка топологии: меняется, когда в мире появляются новые узлы или линки (кэши дистанций бота устаревают).
+func topology_stamp() -> int:
+	return _w.nodes.size() * 100003 + _w.links.size()
+
 func node_type(n: int) -> int:
 	return _w.nodes[n].type
 
@@ -84,9 +88,24 @@ func own(n: int) -> Dictionary:
 		"access_mode": s.access_mode, "buffer": s.buffer, "down": s.down, "infect": s.max_infect(),
 		"prev_owner": s.prev_owner, "has_found_threat": Stealth.has_found_threat(s),
 		"role": s.role, "role_target": s.role_target, "reconf": s.reconf, "router_open": s.router_open,
+		"cpu_level": s.cpu_level, "extra_slots": s.extra_slots,
 	}
 
 # --- Своё состояние ---
+
+## Свободные порты своего узла (за вычетом стройки).
+func free_ports(n: int) -> int:
+	return Builds.free_ports(_w, n)
+
+func pending_builds() -> int:
+	return Builds.pending_of(_w, me)
+
+## Пустая строка — стройку можно начать; иначе причина отказа.
+func build_refusal(kind: int, a: int, b: int = -1) -> String:
+	return Builds.refusal(_w, me, kind, a, b)
+
+func build_cost(kind: int, a: int, b: int = -1) -> int:
+	return Builds.cost_for(_w, kind, a, b)
 
 func bank() -> int:
 	return _w.players[me].bank

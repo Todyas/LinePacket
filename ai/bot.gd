@@ -14,6 +14,7 @@ var _alarm: Dictionary = {}           # узел -> тик, когда его н
 var _dist_to_enemy_core: PackedInt32Array = PackedInt32Array()
 var _dist_to_my_core: PackedInt32Array = PackedInt32Array()
 var _enemy_core: int = -1
+var _topology: int = -1
 var _op_since: Dictionary = {}        # цель -> тик, когда бот впервые занялся ей
 var _skip_until: Dictionary = {}      # цель -> тик, до которого не трогаем (спор или затянувшаяся операция)
 
@@ -26,11 +27,16 @@ func _init(view: BotView, seed_value: int, profile: Dictionary = Defs.BOT_PROFIL
 	for c in view.core_nodes():
 		if c != view.my_core():
 			_enemy_core = c
-	_dist_to_enemy_core.resize(view.node_count())
-	_dist_to_my_core.resize(view.node_count())
-	for n in view.node_count():
-		_dist_to_my_core[n] = view.hops(n, view.my_core())
-		_dist_to_enemy_core[n] = view.hops(n, _enemy_core) if _enemy_core >= 0 else 0
+	_refresh_distances()
+
+## Расстояния до ядер в хопах; пересчитываются, когда стройка меняет карту.
+func _refresh_distances() -> void:
+	_topology = v.topology_stamp()
+	_dist_to_enemy_core.resize(v.node_count())
+	_dist_to_my_core.resize(v.node_count())
+	for n in v.node_count():
+		_dist_to_my_core[n] = v.hops(n, v.my_core())
+		_dist_to_enemy_core[n] = v.hops(n, _enemy_core) if _enemy_core >= 0 else 0
 
 ## Вызывается каждый тик; думает раз в think_ticks, со сдвигом по номеру игрока.
 func act() -> void:
@@ -41,6 +47,8 @@ func act() -> void:
 	var mine: Array[int] = v.my_nodes()
 	if mine.is_empty():
 		return
+	if v.topology_stamp() != _topology:
+		_refresh_distances()
 	_read_events()
 	_release_stale_ops()
 	_defend_with_agents(mine)
@@ -50,6 +58,7 @@ func act() -> void:
 	_router_rules()
 	_retake_and_clean(mine)
 	_fortify(mine)
+	_build(mine)
 	_expand(mine)
 	_watch(mine)
 	_attack(mine)
@@ -378,6 +387,51 @@ func _expand(mine: Array[int]) -> void:
 	if best >= 0:
 		for m in best_src:
 			_set_role(m, Defs.Role.CAPTURE, best)
+
+# --- Строительство ---
+
+## Одна стройка за раз по приоритету: апгрейд боевой машины, линк в обход к своему шлюзу, новая машина ближе к врагу.
+## Байты на задачи агентов (build_reserve) стройка не трогает.
+func _build(mine: Array[int]) -> void:
+	if v.pending_builds() >= int(prof["build_parallel"]):
+		return
+	var spare: int = v.bank() - int(prof["build_reserve"])
+	if spare <= 0:
+		return
+	# 1. CPU боевым машинам.
+	if v.tick() >= int(prof["build_cpu_start_s"]) * Defs.TICK_HZ:
+		for n in mine:
+			var info: Dictionary = v.own(n)
+			if info.is_empty() or not Defs.COMBAT_ROLES.has(int(info["role"])):
+				continue
+			if int(info["cpu_level"]) >= int(prof["build_cpu_levels"]):
+				continue
+			if v.build_refusal(Defs.BuildKind.CPU, n) == "" and v.build_cost(Defs.BuildKind.CPU, n) <= spare:
+				v.submit(Command.build(me, v.tick(), Defs.BuildKind.CPU, n))
+				return
+	# 2. Кабель от машины к своему шлюзу через один узел.
+	for g in mine:
+		if v.node_type(g) != Defs.NodeType.GATEWAY:
+			continue
+		for m in mine:
+			if v.node_type(m) != Defs.NodeType.MACHINE or v.hops(m, g) != 2:
+				continue
+			if v.build_refusal(Defs.BuildKind.CABLE, m, g) == "" and v.build_cost(Defs.BuildKind.CABLE, m, g) <= spare:
+				v.submit(Command.build(me, v.tick(), Defs.BuildKind.CABLE, m, g))
+				return
+	# 3. Новая машина рядом с тем своим узлом, что ближе к врагу и оставляет себе порт.
+	if mine.size() >= int(prof["build_nodes_cap"]):
+		return
+	var best: int = -1
+	var best_d: int = 1000000
+	for n in mine:
+		if v.node_type(n) == Defs.NodeType.ROUTER or v.free_ports(n) < 2:
+			continue
+		if _dist_to_enemy_core[n] < best_d and v.build_refusal(Defs.BuildKind.MACHINE, n) == "":
+			best_d = _dist_to_enemy_core[n]
+			best = n
+	if best >= 0 and v.build_cost(Defs.BuildKind.MACHINE, best) <= spare:
+		v.submit(Command.build(me, v.tick(), Defs.BuildKind.MACHINE, best))
 
 # --- Дозор ---
 

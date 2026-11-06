@@ -24,3 +24,6 @@ func zoom_at(screen_pos: Vector2, factor: float) -> void:
 
 func screen_to_world(screen_pos: Vector2) -> Vector2:
 	return position + (screen_pos - view_size * 0.5) / zoom
+
+func world_to_screen(world_pos: Vector2) -> Vector2:
+	return (world_pos - position) * zoom + view_size * 0.5

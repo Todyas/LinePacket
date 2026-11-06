@@ -3,6 +3,7 @@ extends RefCounted
 ## Один тик сети: прибытия → эмиссия потоков → вход в каналы. Порядок обхода всегда по id.
 
 static func step(w: World) -> void:
+	Builds.step(w)
 	Knowledge.update(w)
 	if w.routes_dirty or w.tick % Defs.ROUTE_RECALC_TICKS == 0:
 		Routing.compute(w)

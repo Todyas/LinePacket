@@ -53,6 +53,17 @@ static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
 	if n.down:
 		lines.append("ЛЕЖИТ: перегрузка CPU, не шлёт пакеты, ПО отключено")
 	lines.append("CPU: %d%% (свободно %d/с)" % [n.cpu_load_pct(), n.cpu_per_s])
+	if n.owner >= 0 and (n.owner == viewer or viewer < 0):
+		var up: String = ""
+		if n.cpu_level > 0:
+			up += "CPU ур. %d/%d" % [n.cpu_level, Defs.CPU_UPGRADE_MAX]
+		if n.extra_slots > 0:
+			up += (", " if up != "" else "") + "доп. слот ПО"
+		if up != "":
+			lines.append("Улучшения: " + up)
+	for b in (Builds.visible_to(w, viewer) if viewer >= 0 else w.builds):
+		if int(b[Builds.F_A]) == node_id or (Builds.is_link(int(b[Builds.F_KIND])) and int(b[Builds.F_B]) == node_id):
+			lines.append("СТРОЙКА: %s, %d%%" % [Defs.BUILD_NAMES[int(b[Builds.F_KIND])], (int(b[Builds.F_TOTAL]) - int(b[Builds.F_LEFT])) * 100 / int(b[Builds.F_TOTAL])])
 	if n.owner >= 0:
 		lines.append("Доступ: %s" % Names.access_mode(n.access_mode, n.key_version))
 		lines.append("Доступ имеют: %s" % Names.access_list(n.access_mask))

@@ -52,6 +52,10 @@ var ids_cool: PackedInt32Array = PackedInt32Array()  # тик последней
 var auto_sent: int = 0                     # сколько автоматических пакетов (DATA, KEEPALIVE) отправил узел
 # Маршрутизатор (S12): пускает ли чужой транзит. Закрытый режет чужие пакеты и агентов, идущих через него.
 var router_open: bool = true
+# Строительство (S13).
+var cpu_level: int = 0                     # купленные апгрейды CPU
+var extra_slots: int = 0                   # купленные слоты ПО
+var upgrading: int = 0                     # идёт апгрейд CPU: узел работает вполсилы
 # Роль (S9).
 var role: int = Defs.Role.WORK
 var role_target: int = -1                  # цель боевой роли
@@ -95,7 +99,10 @@ func setup_cpu() -> void:
 
 ## ПО ест CPU постоянно: свободная мощность = база − нагрузка ПО (но не меньше 4).
 func refresh_cpu() -> void:
-	cpu_per_s = maxi(4, cpu_base - soft_load())
+	var free: int = cpu_base - soft_load()
+	if upgrading > 0:
+		free = free / 2
+	cpu_per_s = maxi(4, free)
 
 func soft_load() -> int:
 	var total: int = 0
@@ -127,7 +134,7 @@ func free_slots() -> int:
 	for t in soft:
 		if t >= 0:
 			used += 1
-	return int(Defs.SOFT_SLOTS[type]) - used
+	return int(Defs.SOFT_SLOTS[type]) + extra_slots - used
 
 func install_soft(t: int) -> bool:
 	if free_slots() <= 0 or has_soft(t):
@@ -225,6 +232,10 @@ func hash_into(h: Hasher) -> void:
 	h.add(prev_owner)
 	h.add(auto_sent)
 	h.add(1 if router_open else 0)
+	h.add(cpu_level)
+	h.add(extra_slots)
+	h.add(upgrading)
+	h.add(cpu_base)
 	h.add(role)
 	h.add(role_target)
 	h.add(role_acc)

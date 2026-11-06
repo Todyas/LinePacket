@@ -165,7 +165,7 @@ const SOFT_SLOTS: Dictionary = {
 	NodeType.GATEWAY: 2,
 	NodeType.ROUTER: 1,
 }
-const MAX_SOFT_SLOTS: int = 3
+const MAX_SOFT_SLOTS: int = 4
 
 ## Файрвол: чужие FLOOD и PAYLOAD проходят не чаще лимита в секунду; каждая проверка стоит CPU.
 const FIREWALL_LIMIT_PER_S: int = 8
@@ -331,6 +331,38 @@ const WATCH_RADIUS: int = 2
 const WATCH_INTERVAL_TICKS: int = 200
 const WATCH_DATA_PERCENT: int = 50
 
+## --- Строительство (S13) ---
+
+enum BuildKind { CABLE, OPTIC, MACHINE, CPU, SLOT }
+const BUILD_NAMES: Dictionary = {
+	BuildKind.CABLE: "Кабель",
+	BuildKind.OPTIC: "Оптика",
+	BuildKind.MACHINE: "Машина рядом",
+	BuildKind.CPU: "Апгрейд CPU",
+	BuildKind.SLOT: "Доп. слот ПО",
+}
+## time_s — время стройки; cost — байт при старте; per_length: к цене линка прибавляется длина / per_length.
+const BUILD_DEFS: Dictionary = {
+	BuildKind.CABLE: {"time_s": 20, "cost": 40, "per_length": 10},
+	BuildKind.OPTIC: {"time_s": 30, "cost": 100, "per_length": 10},
+	BuildKind.MACHINE: {"time_s": 30, "cost": 120, "per_length": 0},
+	BuildKind.CPU: {"time_s": 30, "cost": 80, "per_length": 0},
+	BuildKind.SLOT: {"time_s": 30, "cost": 100, "per_length": 0},
+}
+## Одновременных строек у игрока.
+const BUILD_MAX_PARALLEL: int = 3
+## Самый длинный линк, который можно проложить.
+const BUILD_MAX_LINK_LENGTH: int = 700
+## Новая машина встаёт на таком расстоянии от родителя и не ближе BUILD_MIN_SEPARATION к другим узлам.
+const BUILD_NODE_DISTANCE: int = 240
+const BUILD_MIN_SEPARATION: int = 150
+## Апгрейд CPU: уровней не больше; каждый поднимает CPU узла и мощность боевой роли.
+const CPU_UPGRADE_MAX: int = 2
+const CPU_UPGRADE_BONUS: int = 20
+const CPU_UPGRADE_POWER: int = 2
+## Доп. слот ПО: не больше стольких на узел.
+const EXTRA_SLOT_MAX: int = 1
+
 ## --- Скорость игры (вид, не sim): доля реального времени, с которой идут тики ---
 const GAME_SPEEDS_PERCENT: Array = [25, 50, 100, 200]
 const GAME_SPEED_DEFAULT_INDEX: int = 1
@@ -368,4 +400,9 @@ const BOT_PROFILE: Dictionary = {
 	"capture_retry_s": 40,      # сколько не повторяет захват той же машины, если агент не справился
 	"alarm_memory_s": 40,       # сколько после тревоги «агент берёт машину» посылает защитника
 	"threat_memory_s": 60,      # сколько помнит атаку по логу IDS
+	"build_reserve": 20,        # байт, которые стройка не трогает (на задачи агентов)
+	"build_nodes_cap": 14,      # новых машин строит, пока своих узлов меньше
+	"build_cpu_levels": 1,      # уровней CPU у боевых машин
+	"build_cpu_start_s": 120,   # с какой минуты улучшает CPU боевых машин
+	"build_parallel": 1,        # строек одновременно
 }

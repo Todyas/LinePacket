@@ -23,6 +23,7 @@ func _draw() -> void:
 		return
 	if draw_links:
 		_draw_links()
+		_draw_builds()
 		_draw_watch_zones()
 		_draw_role_lines()
 	if draw_nodes:
@@ -47,6 +48,27 @@ func _draw_links() -> void:
 		else:
 			col = Palette.BACKGROUND.lerp(Palette.LINK, 0.6)   # загрузку не видно: линк тусклый
 		draw_line(Vector2(a.x, a.y), Vector2(b.x, b.y), col, width, true)
+
+## Идущие стройки (свои и те, что видно): линк — пунктир с заполненной долей, новая машина — пунктирный контур с дугой, апгрейды — дуга вокруг узла.
+func _draw_builds() -> void:
+	var list: Array = world.builds if viewer < 0 else Builds.visible_to(world, viewer)
+	for b in list:
+		var kind: int = b[Builds.F_KIND]
+		var frac: float = 1.0 - float(b[Builds.F_LEFT]) / float(maxi(1, int(b[Builds.F_TOTAL])))
+		var col: Color = Color(Palette.of_owner(b[Builds.F_PLAYER]), 0.85)
+		var a: NodeState = world.nodes[b[Builds.F_A]]
+		var pa: Vector2 = Vector2(a.x, a.y)
+		if Builds.is_link(kind):
+			var pb: Vector2 = Vector2(world.nodes[b[Builds.F_B]].x, world.nodes[b[Builds.F_B]].y)
+			draw_dashed_line(pa, pb, Color(col, 0.45), 2.0, 8.0, true)
+			draw_line(pa, pa.lerp(pb, frac), col, 3.0, true)
+		elif kind == Defs.BuildKind.MACHINE:
+			var pn: Vector2 = Vector2(b[Builds.F_X], b[Builds.F_Y])
+			draw_dashed_line(pa, pn, Color(col, 0.45), 2.0, 8.0, true)
+			draw_arc(pn, NODE_RADIUS, 0.0, TAU, 24, Color(col, 0.35), 2.0, true)
+			draw_arc(pn, NODE_RADIUS, -PI / 2.0, -PI / 2.0 + TAU * frac, 24, col, 3.0, true)
+		else:
+			draw_arc(pa, NODE_RADIUS + 9.0, -PI / 2.0, -PI / 2.0 + TAU * frac, 24, col, 3.0, true)
 
 ## Яркость растёт с загрузкой, перегруз — красный.
 static func link_color(load_pct: int) -> Color:

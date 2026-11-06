@@ -64,6 +64,7 @@ static func _collect(w: World, player: int, selected_node: int, target: int) -> 
 		else:
 			items.append({"label": "Открыть транзит", "kind": "router_rule", "open": true})
 	if t.owner == player:
+		items.append({"label": "Строить…", "kind": "build_menu"})
 		items.append({"label": "Агент сюда", "kind": "task", "task": Defs.TaskKind.MOVE, "arg": 0})
 		var pw: Array = Agents.task_params(Defs.TaskKind.CHANGE_PASSWORD, 0)
 		items.append({"label": "Сменить пароль (%d Б, %d с)" % [pw[1], int(pw[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.CHANGE_PASSWORD, "arg": 0})
@@ -110,6 +111,32 @@ static func _collect(w: World, player: int, selected_node: int, target: int) -> 
 				items.append({"label": "Тайное заражение (%d Б/пакет)" % Defs.PAYLOAD_HIDDEN_COST_BYTES, "kind": "role", "role": Defs.Role.INFECT_HIDDEN})
 			if sn != null and sn.access_mode != Defs.AccessMode.KEYS and not sn.my_access:
 				items.append({"label": "Подбор пароля (INIT)", "kind": "role", "role": Defs.Role.CAPTURE})
+	return items
+
+## Подменю «Строить…» для своего узла: недоступные пункты серые, с причиной в подсказке.
+static func build_items_for(w: World, player: int, node: int) -> Array[Dictionary]:
+	var items: Array[Dictionary] = []
+	if node < 0 or w.nodes[node].owner != player:
+		return items
+	for kind in [Defs.BuildKind.MACHINE, Defs.BuildKind.CPU, Defs.BuildKind.SLOT, Defs.BuildKind.CABLE, Defs.BuildKind.OPTIC]:
+		var link: bool = Builds.is_link(kind)
+		var label: String = "%s%s (%s%d Б, %d с)" % [Defs.BUILD_NAMES[kind], " к…" if link else "", "от " if link else "", Builds.cost_for(w, kind, -1, -1), Builds.ticks_for(kind) / Defs.TICK_HZ]
+		var reason: String = ""
+		if link:
+			if Builds.pending_of(w, player) >= Defs.BUILD_MAX_PARALLEL:
+				reason = "уже идёт %d стройки" % Defs.BUILD_MAX_PARALLEL
+			elif Builds.free_ports(w, node) <= 0:
+				reason = "нет свободного порта"
+			elif w.players[player].bank < Builds.cost_for(w, kind, -1, -1):
+				reason = "не хватает байт"
+		else:
+			reason = Builds.refusal(w, player, kind, node)
+		if reason != "":
+			items.append({"label": label, "kind": "info", "hint": "Сейчас нельзя: %s." % reason})
+		elif link:
+			items.append({"label": label, "kind": "build_link", "build": kind, "node": node})
+		else:
+			items.append({"label": label, "kind": "build", "build": kind, "node": node})
 	return items
 
 func open(screen_pos: Vector2, items: Array[Dictionary]) -> void:

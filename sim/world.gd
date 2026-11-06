@@ -10,6 +10,7 @@ var nodes: Array[NodeState] = []
 var links: Array[LinkState] = []
 var players: Array[PlayerState] = []
 var agents: Array[AgentState] = []          # по Defs.AGENTS_PER_PLAYER на игрока, подряд
+var builds: Array = []                       # идущие стройки, см. Builds
 var pool: PacketPool = PacketPool.new()
 var routes: Array[PackedInt32Array] = []   # routes[dst][node] = id линка следующего шага или -1
 var route_dist: Array[PackedInt64Array] = []   # route_dist[dst][node] = цена пути node→dst
@@ -80,12 +81,58 @@ func _apply(c: Command) -> void:
 			ok = Stealth.apply_activate(self, c.player, c.args)
 		Command.Type.SET_ROUTER_RULE:
 			ok = _apply_router_rule(c)
+		Command.Type.BUILD:
+			ok = Builds.apply(self, c.player, c.args)
 		_:
 			ok = false
 	if ok:
 		applied_log.append(c)
 	else:
 		rejected_count += 1
+
+## Новый узел (стройка): id следующий по порядку, знания игроков растут вместе с картой.
+func add_node(type: int, x: int, y: int, owner: int) -> NodeState:
+	var n := NodeState.new()
+	n.id = nodes.size()
+	n.type = type
+	n.x = x
+	n.y = y
+	n.owner = owner
+	n.setup_cpu()
+	n.produce_acc = (n.id * 7) % Defs.TICK_HZ
+	n.ka_acc = (n.id * 11) % Defs.TICK_HZ
+	if owner >= 0:
+		n.control = Defs.CAPTURE_START_CONTROL
+		n.reset_access()
+	nodes.append(n)
+	Knowledge.grow(self)
+	routes_dirty = true
+	return n
+
+## Новый линк между существующими узлами: длина, задержка и ёмкость по виду линка.
+func add_link(a: int, b: int, kind: int) -> LinkState:
+	var l := LinkState.new()
+	l.id = links.size()
+	l.a = a
+	l.b = b
+	l.kind = kind
+	var ldef: Dictionary = Defs.LINK_DEFS[kind]
+	var na: NodeState = nodes[a]
+	var nb: NodeState = nodes[b]
+	var dx: int = na.x - nb.x
+	var dy: int = na.y - nb.y
+	l.length = IntMath.isqrt(dx * dx + dy * dy)
+	l.latency = maxi(Defs.LINK_MIN_LATENCY, IntMath.ceil_div(l.length, int(ldef["speed"])))
+	l.capacity = int(ldef["capacity"])
+	l.queue_limit = int(ldef["queue"])
+	l.credit[0] = l.credit_cap()
+	l.credit[1] = l.credit_cap()
+	links.append(l)
+	na.links.append(l.id)
+	nb.links.append(l.id)
+	Knowledge.grow(self)
+	routes_dirty = true
+	return l
 
 func _apply_router_rule(c: Command) -> bool:
 	if c.args.size() != 2 or c.player < 0 or c.player >= players.size():
@@ -153,6 +200,9 @@ func state_hash() -> int:
 	h.add(links.size())
 	for l in links:
 		l.hash_into(h)
+	h.add(builds.size())
+	for b in builds:
+		h.add_array(b)
 	h.add(players.size())
 	for p in players:
 		p.hash_into(h)

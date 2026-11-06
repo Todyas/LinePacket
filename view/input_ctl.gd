@@ -25,6 +25,11 @@ var _press_pos: Vector2 = Vector2.ZERO
 var mouse_world: Vector2 = Vector2.ZERO
 var _panning: bool = false
 var ring_target: int = -1
+## Экранная точка, где открыто кольцевое меню (подменю «Строить…» открывается там же).
+var ring_pos: Vector2 = Vector2.ZERO
+## Строительство линка: вид стройки и первый конец; второй конец — следующий клик по узлу.
+var link_kind: int = -1
+var link_from: int = -1
 ## Узел, с которого пойдут потоки из меню: выбранный свой или ближайший свой к цели.
 var ring_source: int = -1
 ## Пауза: ввод в мир заморожен, работают только Пробел и Esc (снять паузу).
@@ -78,6 +83,10 @@ func _on_button(mb: InputEventMouseButton) -> void:
 					ring.close()
 				_press_pos = mb.position
 				var nid: int = Picking.hit_node(world, mouse_world, _hit_radius())
+				if link_kind >= 0:
+					finish_link(nid)
+					queue_redraw()
+					return
 				if nid >= 0 and world.nodes[nid].owner == local_player and Roles.can_have_role(world.nodes[nid]):
 					drag_from = nid
 				else:
@@ -102,6 +111,7 @@ func _on_button(mb: InputEventMouseButton) -> void:
 			if mb.pressed and ring != null:
 				var tgt: int = Picking.hit_node(world, mouse_world, _hit_radius())
 				ring_target = tgt
+				ring_pos = mb.position
 				ring_source = RingMenu.source_for(world, local_player, selected_node, tgt)
 				var items: Array[Dictionary] = RingMenu.items_for(world, local_player, ring_source, tgt)
 				ring.open(mb.position, items)
@@ -231,8 +241,12 @@ func _on_key(k: InputEventKey) -> void:
 		selected_agent = k.keycode - KEY_1
 	elif k.keycode == KEY_F2 and OS.is_debug_build():
 		switch_side()
+	elif k.keycode == KEY_B:
+		open_build_menu()
 	elif k.keycode == KEY_ESCAPE:
-		if ring != null and ring.is_open:
+		if link_kind >= 0:
+			cancel_link()
+		elif ring != null and ring.is_open:
 			ring.close()
 		elif selected_node >= 0 or drag_from >= 0 or not selection.is_empty():
 			selected_node = -1
@@ -241,6 +255,39 @@ func _on_key(k: InputEventKey) -> void:
 			queue_redraw()
 		else:
 			pause_toggled.emit()   # нечего закрывать: Esc открывает паузу
+
+## Подменю строительства для выбранного своего узла (клавиша B или пункт «Строить…»).
+func open_build_menu(node: int = -1, screen_pos: Vector2 = Vector2(-1, -1)) -> void:
+	var nid: int = node if node >= 0 else (selected_node if selected_node >= 0 else (selection[0] if not selection.is_empty() else -1))
+	if nid < 0 or world.nodes[nid].owner != local_player:
+		add_notice("Строить: сначала выберите свой узел")
+		return
+	if ring == null:
+		return
+	ring_target = nid
+	var pos: Vector2 = screen_pos
+	if pos.x < 0.0:
+		pos = camera.world_to_screen(Vector2(world.nodes[nid].x, world.nodes[nid].y))
+	ring_pos = pos
+	ring.open(pos, RingMenu.build_items_for(world, local_player, nid))
+
+## Второй конец линка выбран кликом; пустое место или отказ отменяют режим.
+func finish_link(nid: int) -> void:
+	var kind: int = link_kind
+	var from: int = link_from
+	cancel_link()
+	if nid < 0 or nid == from:
+		return
+	var reason: String = Builds.refusal(world, local_player, kind, from, nid)
+	if reason != "":
+		add_notice("Стройка: %s" % reason)
+		return
+	submit(Command.build(local_player, world.tick, kind, from, nid))
+
+func cancel_link() -> void:
+	link_kind = -1
+	link_from = -1
+	queue_redraw()
 
 ## Отладка (только в debug-сборке): переключиться на другую сторону, чтобы играть за обоих.
 func switch_side() -> void:
@@ -267,6 +314,19 @@ func apply_item(item: Dictionary) -> void:
 		else:
 			group.append(ring_source)
 		order_role(group, int(item["role"]), ring_target)
+	elif item["kind"] == "build_menu":
+		open_build_menu(ring_target, ring_pos)
+	elif item["kind"] == "build":
+		var reason: String = Builds.refusal(world, local_player, int(item["build"]), int(item["node"]))
+		if reason != "":
+			add_notice("Стройка: %s" % reason)
+		else:
+			submit(Command.build(local_player, world.tick, int(item["build"]), int(item["node"])))
+	elif item["kind"] == "build_link":
+		link_kind = int(item["build"])
+		link_from = int(item["node"])
+		add_notice("%s от %s: кликните второй узел (Esc — отмена)" % [Defs.BUILD_NAMES[link_kind], Names.node_label(world.nodes[link_from])])
+		queue_redraw()
 	elif item["kind"] == "router_rule":
 		submit(Command.set_router_rule(local_player, world.tick, ring_target, bool(item["open"])))
 	elif item["kind"] == "own_role":
@@ -282,6 +342,15 @@ func _draw() -> void:
 		var r := Rect2(box_from_world, Vector2.ZERO).expand(mouse_world)
 		draw_rect(r, Color(Palette.of_owner(local_player), 0.12), true)
 		draw_rect(r, Color(Palette.of_owner(local_player), 0.8), false, 1.5)
+	if link_kind >= 0 and link_from >= 0:
+		var f: NodeState = world.nodes[link_from]
+		var hover: int = Picking.hit_node(world, mouse_world, _hit_radius())
+		var end2: Vector2 = mouse_world
+		var ok: bool = false
+		if hover >= 0 and hover != link_from:
+			end2 = Vector2(world.nodes[hover].x, world.nodes[hover].y)
+			ok = Builds.refusal(world, local_player, link_kind, link_from, hover) == ""
+		draw_dashed_line(Vector2(f.x, f.y), end2, Color(0.4, 1.0, 0.5) if ok else Color(1.0, 0.5, 0.4), 3.0, 10.0, true)
 	if drag_from < 0:
 		return
 	var n: NodeState = world.nodes[drag_from]

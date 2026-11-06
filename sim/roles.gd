@@ -3,7 +3,9 @@ extends RefCounted
 ## Роли машин: что своя машина или ядро делает сейчас. Боевая роль шлёт пакеты на цель вместо DATA.
 
 static func power(n: NodeState) -> int:
-	var p: int = int(Defs.ROLE_POWER.get(n.type, 0))
+	var p: int = int(Defs.ROLE_POWER.get(n.type, 0)) + n.cpu_level * Defs.CPU_UPGRADE_POWER
+	if n.upgrading > 0:
+		p = p / 2
 	if n.soft_active(Defs.SoftType.RELAY):
 		p = p * Defs.RELAY_COMBAT_PERCENT / 100
 	return p

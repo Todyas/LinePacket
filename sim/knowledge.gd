@@ -37,6 +37,15 @@ static func ensure(w: World) -> void:
 	while w.know.size() < w.players.size():
 		w.know.append(Knowledge.new(w.nodes.size(), w.links.size()))
 
+## Карта выросла (стройка): массивы знаний растягиваются, новое — силуэт.
+static func grow(w: World) -> void:
+	for k in w.know:
+		if k.snaps.size() < w.nodes.size():
+			k.snaps.resize(w.nodes.size())
+			k.observed.resize(w.nodes.size())
+		if k.link_seen.size() < w.links.size():
+			k.link_seen.resize(w.links.size())
+
 ## Раз в тик: что игрок наблюдает прямо сейчас, и свежие снимки наблюдаемого.
 static func update(w: World) -> void:
 	ensure(w)
