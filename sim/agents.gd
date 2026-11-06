@@ -49,8 +49,8 @@ static func validate_task(w: World, player: int, kind: int, node: int, arg: int)
 		return false
 	if n.owner == player:
 		return not ENEMY_KINDS.has(kind) and kind != Defs.TaskKind.CAPTURE
-	# Чужая машина: можно ехать (MOVE), делать «внутренние» задачи врага и захватывать.
-	return kind == Defs.TaskKind.MOVE or kind == Defs.TaskKind.CAPTURE or ENEMY_KINDS.has(kind)
+	# Чужая машина: можно ехать (MOVE), делать «внутренние» задачи врага, захватывать и выгонять защитника.
+	return kind == Defs.TaskKind.MOVE or kind == Defs.TaskKind.CAPTURE or kind == Defs.TaskKind.EVICT or ENEMY_KINDS.has(kind)
 
 ## Применима ли задача к узлу прямо сейчас (проверяется, когда агент на месте).
 static func applicable(w: World, a: AgentState, n: NodeState, kind: int, arg: int) -> bool:
@@ -73,7 +73,7 @@ static func applicable(w: World, a: AgentState, n: NodeState, kind: int, arg: in
 		Defs.TaskKind.CAPTURE:
 			return not mine
 		Defs.TaskKind.EVICT:
-			return mine and not foreign_agents_on(w, n).is_empty()
+			return (mine or can_enter(n, a.owner)) and not others_on(w, a, n).is_empty()
 	return false
 
 ## Агенты других игроков, стоящие на узле (в пути агент не стоит).
@@ -81,6 +81,14 @@ static func foreign_agents_on(w: World, n: NodeState) -> Array[AgentState]:
 	var out: Array[AgentState] = []
 	for b in w.agents:
 		if b.owner != n.owner and b.node == n.id:
+			out.append(b)
+	return out
+
+## Агенты других игроков (не того, кто спрашивает), стоящие на узле.
+static func others_on(w: World, a: AgentState, n: NodeState) -> Array[AgentState]:
+	var out: Array[AgentState] = []
+	for b in w.agents:
+		if b.owner != a.owner and b.node == n.id:
 			out.append(b)
 	return out
 
@@ -270,7 +278,7 @@ static func _complete(w: World, a: AgentState) -> void:
 				else:
 					Economy.takeover(w, n, a.owner)
 		Defs.TaskKind.EVICT:
-			for b in foreign_agents_on(w, n):
+			for b in others_on(w, a, n):
 				send_home(w, b)
 		Defs.TaskKind.ENTRENCH:
 			# Закрепление: чужие доступы и ПО вылетают.

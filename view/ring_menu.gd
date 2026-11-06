@@ -98,6 +98,7 @@ static func _collect(w: World, player: int, selected_node: int, target: int) -> 
 		if sn != null and sn.my_virus:
 			items.append({"label": "Активировать: открыть дверь", "kind": "activate", "mode": Defs.ActivateMode.OPEN_DOOR})
 		if sn != null and sn.my_entry:
+			items.append({"label": "Выгнать защитника (%d с)" % (int(Agents.task_params(Defs.TaskKind.EVICT, 0)[0]) / Defs.TICK_HZ), "kind": "task", "task": Defs.TaskKind.EVICT, "arg": 0})
 			var tk: int = Defs.TaskKind.TAKE_ROUTER if t.type == Defs.NodeType.ROUTER else Defs.TaskKind.CAPTURE
 			var cp: Array = Agents.task_params(tk, 0, t)
 			var verb: String = "Взять управление" if tk == Defs.TaskKind.TAKE_ROUTER else "Захватить"

@@ -92,7 +92,25 @@ func test_evict_needs_foreign_agent() -> void:
 	check(Agents.agent_of(w, 0, 0).queue.is_empty(), "некого выгонять: задача снимается")
 	w.submit(Command.queue_task(1, w.tick, 0, Defs.TaskKind.EVICT, 2))
 	w.step()
-	check_eq(w.rejected_count, 1, "выгонять можно только на своей машине")
+	check_eq(w.rejected_count, 0, "выгонять можно и на чужой при входе: проверка при прибытии")
+	w.run(Defs.TICK_HZ * 10)
+	check(Agents.agent_of(w, 1, 0).queue.is_empty(), "нет входа или некого выгонять: задача снимается")
+
+func test_attacker_with_entry_evicts_defender_and_captures() -> void:
+	var w: World = _ready_attack()
+	TestMaps.infect_fully(w, 2, 1)
+	w.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.MOVE, 2))      # защитник встаёт на машину
+	w.run(80)
+	var def_a: AgentState = Agents.agent_of(w, 0, 0)
+	check_eq(def_a.node, 2)
+	w.submit(Command.queue_task(1, w.tick, 0, Defs.TaskKind.CAPTURE, 2))
+	w.run(300)
+	check_eq(w.nodes[2].owner, 0, "защитник на месте: захват стоит")
+	w.submit(Command.queue_task(1, w.tick, 1, Defs.TaskKind.EVICT, 2))
+	w.run(Defs.TICK_HZ * 7)
+	check_eq(def_a.mode, AgentState.Mode.LOST, "атакующий выгнал защитника")
+	w.run(Defs.TICK_HZ * 14)
+	check_eq(w.nodes[2].owner, 1, "пока защитник едет назад, захват доведён")
 
 func test_core_capture_by_agent_wins_the_match() -> void:
 	var w: World = TestMaps.rush()

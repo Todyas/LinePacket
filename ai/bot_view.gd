@@ -119,7 +119,7 @@ func my_agents() -> Array[Dictionary]:
 		var a: AgentState = Agents.agent_of(_w, me, i)
 		if not a.hired:
 			continue
-		out.append({"idx": i, "node": a.node, "mode": a.mode, "queue": a.queue.duplicate(true)})
+		out.append({"idx": i, "node": a.node, "mode": a.mode, "queue": a.queue.duplicate(true), "progress": a.progress_permille()})
 	return out
 
 ## Нанято агентов, идёт ли наём и цена следующего (-1 — больше нанимать некого).

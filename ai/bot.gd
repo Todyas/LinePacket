@@ -15,6 +15,7 @@ var _dist_to_enemy_core: PackedInt32Array = PackedInt32Array()
 var _dist_to_my_core: PackedInt32Array = PackedInt32Array()
 var _enemy_core: int = -1
 var _topology: int = -1
+var _cap_progress: Dictionary = {}    # агент -> [прогресс захвата, сколько раз подряд не изменился]
 var _op_since: Dictionary = {}        # цель -> тик, когда бот впервые занялся ей
 var _skip_until: Dictionary = {}      # цель -> тик, до которого не трогаем (спор или затянувшаяся операция)
 
@@ -54,6 +55,7 @@ func act() -> void:
 	_defend_with_agents(mine)
 	_activate_viruses(mine)
 	_capture_ops()
+	_break_stalled_captures()
 	_take_routers(mine)
 	_router_rules()
 	_retake_and_clean(mine)
@@ -253,6 +255,28 @@ func _capture_ops() -> void:
 			best = n
 	if best >= 0 and _give_task(Defs.TaskKind.CAPTURE, best, 0, true):
 		_skip_until[best] = v.tick() + int(prof["capture_retry_s"]) * Defs.TICK_HZ
+
+## Захват стоит на месте (на узле защитник): второй агент едет выгонять защитника.
+func _break_stalled_captures() -> void:
+	for a in v.my_agents():
+		var idx: int = int(a["idx"])
+		var q: Array = a["queue"]
+		if q.is_empty() or not [Defs.TaskKind.CAPTURE, Defs.TaskKind.TAKE_ROUTER].has(int(q[0][0])):
+			_cap_progress.erase(idx)
+			continue
+		# Агент либо работает над захватом, либо уже стоит на цели и ждёт (захват не начат: на узле защитник).
+		var working: bool = int(a["mode"]) == AgentState.Mode.WORK
+		var waiting: bool = int(a["mode"]) == AgentState.Mode.IDLE and int(a["node"]) == int(q[0][1])
+		if not working and not waiting:
+			_cap_progress.erase(idx)
+			continue
+		var prog: int = int(a["progress"])
+		var rec: Array = _cap_progress.get(idx, [-1, 0])
+		var stalls: int = int(rec[1]) + 1 if prog == int(rec[0]) else 0
+		_cap_progress[idx] = [prog, stalls]
+		if stalls >= int(prof["stall_thinks"]):
+			_cap_progress[idx] = [prog, 0]
+			_give_task(Defs.TaskKind.EVICT, int(q[0][1]), 0, true)
 
 ## Ничьи маршрутизаторы своей половины карты берёт агент: чем ближе к нашему ядру, тем раньше.
 func _take_routers(mine: Array[int]) -> void:
@@ -463,7 +487,10 @@ func _watch(mine: Array[int]) -> void:
 				watchers += 1
 		elif int(info["role"]) == Defs.Role.WORK and int(info["reconf"]) == 0:
 			# Дозор ставим туда, где в радиусе больше всего ещё неизвестных узлов; при равенстве — ближе к врагу.
-			var score: int = _blind_near(n, false) * 8 - _dist_to_enemy_core[n]
+			var blind: int = _blind_near(n, false)
+			if blind == 0:
+				continue    # смотреть некуда: дозор тут только гонял бы роль туда-сюда
+			var score: int = blind * 8 - _dist_to_enemy_core[n]
 			if score > best_score:
 				best_score = score
 				best = n

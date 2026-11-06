@@ -186,3 +186,32 @@ func test_bot_hires_agents_when_rich() -> void:
 		w.step()
 	check(Agents.hired_count(w, 0) >= 4, "бот нанял агента: %d" % Agents.hired_count(w, 0))
 	check(w.rejected_count <= 3, "команды бота почти не отвергаются: %d" % w.rejected_count)
+
+func test_bot_sends_evictor_when_capture_stalls() -> void:
+	# Защитник стоит на ядре; бот-атакующий заразил ядро и послал агента: второй агент должен выгнать защитника.
+	var w: World = TestMaps.rush()
+	w.players[1].bank = 500
+	TestMaps.infect_fully(w, 0, 1)
+	var bot := Bot.new(BotView.new(w, 1), 3)
+	check(Agents.agent_of(w, 0, 0).node == w.players[0].core_node, "защитник стоит дома")
+	for t in Defs.TICK_HZ * 120:
+		bot.act()
+		w.step()
+		if w.winner >= 0:
+			break
+	check_eq(w.winner, 1, "защитник выгнан, ядро взято")
+
+func test_bot_does_not_flip_watch_role_back_and_forth() -> void:
+	# Раньше дозор ставился на машину, смотреть которой было некуда, и тут же снимался: машины молчали каждые 5 с.
+	var w: World = _large(1)
+	var bot := Bot.new(BotView.new(w, 0), 1)
+	for t in Defs.TICK_HZ * 60 * 6:
+		if t % 100 == 0:
+			w.players[0].bank = maxi(w.players[0].bank, 300)
+		bot.act()
+		w.step()
+	var watch_sets: int = 0
+	for c in w.applied_log:
+		if c.player == 0 and c.type == Command.Type.SET_ROLE and c.args[1] == Defs.Role.WATCH:
+			watch_sets += 1
+	check(watch_sets <= 6, "дозор назначается редко: %d раз за 6 минут" % watch_sets)
