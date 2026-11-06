@@ -68,7 +68,7 @@ func show_text(txt: String, pos: Vector2) -> void:
 static func text_at(w: World, viewer: int, player: int, screen_pos: Vector2, world_pos: Vector2, zoom: float,
 		role_mode: int, selected_node: int) -> String:
 	if screen_pos.y < HUD_HEIGHT:
-		return "Режим перетаскивания: машину тянете к цели. Сменить: Q W E R T.\n" + Hints.role(role_mode)
+		return "Режим перетаскивания: машину (или выделенную рамкой группу) тянете к цели. Сменить: Q W E R T.\n" + Hints.role(role_mode)
 	if screen_pos.y >= AGENT_TOP:
 		var i: int = int((screen_pos.x - 14.0) / 520.0)
 		if i < 0 or i >= Defs.AGENTS_PER_PLAYER:

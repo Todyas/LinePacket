@@ -7,6 +7,8 @@ var world: World
 var draw_links: bool = true
 var draw_nodes: bool = false
 var selected_node: int = -1
+## Выделенная группа своих машин.
+var selection: Array[int] = []
 var agent_player: int = 0
 ## Чьими глазами рисуем; -1 — всеведущий взгляд (отладка и тесты).
 var viewer: int = -1
@@ -21,6 +23,7 @@ func _draw() -> void:
 		return
 	if draw_links:
 		_draw_links()
+		_draw_watch_zones()
 		_draw_role_lines()
 	if draw_nodes:
 		var font: Font = ThemeDB.fallback_font
@@ -50,6 +53,28 @@ static func link_color(load_pct: int) -> Color:
 	if load_pct >= 90:
 		return Palette.OVERLOAD
 	return Palette.LINK.lerp(Palette.LINK_HOT, float(load_pct) / 90.0)
+
+## Зона дозора: узлы в WATCH_RADIUS хопах от своей машины в роли «Дозор» обведены кольцами цвета владельца.
+func _draw_watch_zones() -> void:
+	for n in world.nodes:
+		if n.role != Defs.Role.WATCH or n.owner < 0 or n.reconf > 0 or (viewer >= 0 and n.owner != viewer):
+			continue
+		var col: Color = Color(Palette.of_owner(n.owner), 0.5)
+		var dist: Dictionary = {n.id: 0}
+		var queue: Array[int] = [n.id]
+		var head: int = 0
+		while head < queue.size():
+			var v: int = queue[head]
+			head += 1
+			var c: Vector2 = Vector2(world.nodes[v].x, world.nodes[v].y)
+			draw_arc(c, NODE_RADIUS + 16.0, 0.0, TAU, 32, col, 1.5, true)
+			if int(dist[v]) >= Defs.WATCH_RADIUS:
+				continue
+			for lid in world.nodes[v].links:
+				var u: int = world.links[lid].other(v)
+				if not dist.has(u):
+					dist[u] = int(dist[v]) + 1
+					queue.append(u)
 
 ## Линии от боевых машин к целям: цвет владельца, свои ярче; чужие видны, только если узел наблюдается или есть снимок.
 func _draw_role_lines() -> void:
@@ -181,8 +206,12 @@ func _draw_node(n: NodeState, font: Font) -> void:
 			var d: float = NODE_RADIUS * 0.7
 			draw_line(c + Vector2(-d, -d), c + Vector2(d, d), Palette.OVERLOAD, 3.0, true)
 			draw_line(c + Vector2(-d, d), c + Vector2(d, -d), Palette.OVERLOAD, 3.0, true)
-	if n.id == selected_node:
+	if n.id == selected_node or selection.has(n.id):
 		draw_arc(c, NODE_RADIUS + 8.0, 0.0, TAU, 48, Color(1, 1, 1, 0.85), 2.0, true)
+	if live and n.reconf > 0 and (viewer < 0 or n.owner == viewer):
+		# Шкала перенастройки: дуга убывает, пока машина меняет роль.
+		var left: float = float(n.reconf) / float(Defs.ROLE_RECONF_TICKS)
+		draw_arc(c, NODE_RADIUS + 4.0, -PI / 2.0, -PI / 2.0 + TAU * left, 32, Color(1.0, 0.85, 0.3, 0.9), 3.0, true)
 	_draw_agent_marks(n, c, font)
 	var label_col: Color = Palette.BACKGROUND.lerp(Palette.NEUTRAL, 1.0 if live else maxf(alpha, 0.45))
 	draw_string(font, c + Vector2(-20, NODE_RADIUS + 22), Names.node_label(n), HORIZONTAL_ALIGNMENT_CENTER, 40, 14, label_col)

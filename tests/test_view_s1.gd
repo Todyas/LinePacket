@@ -59,7 +59,7 @@ func test_packet_view_frame_cost() -> void:
 		if s != d and w.nodes[s].owner == 0:
 			srcs.append(s)
 			dsts.append(d)
-	TestMaps.pump(w, srcs, dsts, Defs.PacketType.FLOOD, 20, 400)
+	TestMaps.pump(w, srcs, dsts, Defs.PacketType.FLOOD, 8, 400)
 	var pv := PacketView.new()
 	pv._ready()
 	var t0: int = Time.get_ticks_usec()

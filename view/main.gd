@@ -161,6 +161,7 @@ func _process(delta: float) -> void:
 	agent_panel.player = local_player
 	end_screen.local_player = local_player
 	nodes_view.selected_node = input_ctl.selected_node
+	nodes_view.selection = input_ctl.selection
 	nodes_view.agent_player = local_player
 	card.selected_node = input_ctl.selected_node
 	agent_panel.selected_agent = input_ctl.selected_agent

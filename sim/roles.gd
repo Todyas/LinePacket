@@ -110,3 +110,11 @@ static func counts(w: World, player: int) -> Array[int]:
 		else:
 			work += 1
 	return [work, combat]
+
+## Сколько своих машин сейчас перенастраиваются.
+static func reconfiguring(w: World, player: int) -> int:
+	var c: int = 0
+	for n in w.nodes:
+		if n.owner == player and can_have_role(n) and n.reconf > 0:
+			c += 1
+	return c
