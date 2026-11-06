@@ -14,8 +14,22 @@ var cpu_credit: int = 0
 var cpu_used_tick: int = 0
 var cpu_hist: PackedInt32Array = PackedInt32Array()   # затраты по тикам за последнюю секунду
 
+# Контроль и захват.
+var control: int = 0                       # 0..CONTROL_MAX, у нейтрала 0
+var capture: PackedInt32Array = PackedInt32Array()   # шкала захвата нейтрала по игрокам
+var capture_tick: int = -1000              # тик последнего INIT на этот узел
+var supplier: int = -1                     # кто шлёт этому узлу KEEPALIVE
+var ka_acc: int = 0
+# Экономика.
+var gw_target: int = -1                    # ближайший свой шлюз для DATA
+var buffer: int = 0                        # байты, не довезённые до шлюза
+var produce_acc: int = 0
+var send_acc: int = 0
+var gw_credit: int = 0                     # потолок шлюза
+
 func _init() -> void:
 	cpu_hist.resize(Defs.LOAD_WINDOW)
+	capture.resize(Defs.MAX_PLAYERS)
 
 func setup_cpu() -> void:
 	cpu_per_s = int(Defs.NODE_DEFS[type]["cpu"])
@@ -44,3 +58,13 @@ func hash_into(h: Hasher) -> void:
 	h.add(y)
 	h.add(cpu_credit)
 	h.add_array(cpu_hist)
+	h.add(control)
+	h.add_array(capture)
+	h.add(capture_tick)
+	h.add(supplier)
+	h.add(ka_acc)
+	h.add(gw_target)
+	h.add(buffer)
+	h.add(produce_acc)
+	h.add(send_acc)
+	h.add(gw_credit)

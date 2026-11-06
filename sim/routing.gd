@@ -11,11 +11,15 @@ static func link_cost(l: LinkState, d: int) -> int:
 static func compute(w: World) -> void:
 	var n: int = w.nodes.size()
 	w.routes.clear()
+	w.route_dist.clear()
 	for dst in n:
-		w.routes.append(_from_dst(w, dst, n))
+		var res: Array = _from_dst(w, dst, n)
+		w.routes.append(res[0])
+		w.route_dist.append(res[1])
 	w.routes_dirty = false
 
-static func _from_dst(w: World, dst: int, n: int) -> PackedInt32Array:
+## Возвращает [next: PackedInt32Array, dist: PackedInt64Array]. dist[u] — цена пути из u в dst.
+static func _from_dst(w: World, dst: int, n: int) -> Array:
 	var dist := PackedInt64Array()
 	dist.resize(n)
 	dist.fill(INF)
@@ -45,7 +49,7 @@ static func _from_dst(w: World, dst: int, n: int) -> PackedInt32Array:
 			if cand < dist[u] or (cand == dist[u] and lid < next[u]):
 				dist[u] = cand
 				next[u] = lid
-	return next
+	return [next, dist]
 
 ## Путь из src в dst по текущим таблицам: список id узлов (включая оба конца). Пусто — нет маршрута.
 static func path(w: World, src: int, dst: int) -> Array[int]:

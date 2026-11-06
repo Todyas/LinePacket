@@ -72,7 +72,7 @@ const PACKET_SIZE: Dictionary = {
 
 ## Какие типы игрок может пускать потоком (остальные идут автоматически).
 ## Список растёт вместе со спринтами по мере появления механик.
-const PLAYER_FLOW_TYPES: Array = [PacketType.FLOOD]
+const PLAYER_FLOW_TYPES: Array = [PacketType.FLOOD, PacketType.INIT]
 
 ## --- Сеть (S1) ---
 
@@ -101,3 +101,42 @@ const ROUTE_LATENCY_WEIGHT: int = 10
 const ROUTE_LOAD_PENALTY: int = 3
 ## Скользящее окно загрузки: ровно одна секунда.
 const LOAD_WINDOW: int = TICK_HZ
+
+## --- Экономика и захват (S2) ---
+
+## Контроль хранится в тысячных долях пункта: 0..100000 = 0..100.
+const CONTROL_MAX: int = 100000
+## Распад контроля в секунду (не у ядра).
+const CONTROL_DECAY_PER_S: int = 5000
+## Каждая поддерживаемая машина получает KEEPALIVE с этой частотой (пакетов в секунду).
+const KEEPALIVE_RATE: int = 1
+const KEEPALIVE_BOOST: int = 10000
+## Узел может «кормить» KEEPALIVE других, только если его контроль не ниже порога.
+const SUPPLY_MIN_CONTROL: int = 30000
+## Контроль свежезахваченного узла.
+const CAPTURE_START_CONTROL: int = 50000
+
+## Своя машина или ядро рождает DATA с этой частотой, 1 DATA = 1 байт.
+const DATA_RATE: int = 2
+const DATA_VALUE: int = 1
+## Выгрузка накопленного буфера: дополнительные отправки в секунду, пока буфер не пуст.
+const BUFFER_UNLOAD_RATE: int = 4
+## Лимит локального буфера в байтах.
+const BUFFER_LIMIT: Dictionary = {
+	NodeType.CORE: 100,
+	NodeType.MACHINE: 60,
+	NodeType.GATEWAY: 0,
+	NodeType.SWITCH: 0,
+}
+## Потолок шлюза: пакетов DATA в секунду, которые он принимает.
+const GATEWAY_CAP_PER_S: int = 10
+## Шлюз сглаживает всплески: кредит копится на столько тиков (поток машин приходит пачками).
+const GATEWAY_BURST_TICKS: int = 10
+
+## Сколько пакетов INIT сдаёт нейтрала (по типу узла).
+const INIT_NEEDED: Dictionary = {
+	NodeType.MACHINE: 30,
+	NodeType.GATEWAY: 60,
+}
+## Шкала захвата теряет столько пунктов в секунду, если на узел не идёт INIT.
+const CAPTURE_DECAY_PER_S: int = 3

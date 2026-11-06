@@ -69,3 +69,37 @@ static func grid(side: int, spacing: int, seed_value: int = 1) -> World:
 			if y + 1 < side:
 				links.append(link(id2, id2 + side, "optic"))
 	return build({"name": "grid", "players": 2, "nodes": nodes, "links": links}, seed_value)
+
+## Экономика: ядро P0, свой шлюз и n своих машин через свич (чтобы упереться в потолок шлюза).
+static func eco_fan(machines: int, gateway_owner: int = 0, seed_value: int = 1) -> World:
+	var nodes: Array = [
+		node(0, "core", 0, 0, 0),
+		node(1, "gateway", 200, 0, gateway_owner),
+		node(2, "switch", 100, 150),
+		node(3, "core", 3000, 0, 1),
+	]
+	var links: Array = [link(0, 1, "optic"), link(2, 1, "optic"), link(0, 2, "optic"), link(1, 3, "optic")]
+	var second_switch: int = 4 + machines
+	for i in machines:
+		var id: int = 4 + i
+		nodes.append(node(id, "machine", 60 + i * 20, 300, 0))
+		links.append(link(id, 2 if i < 5 or machines <= 5 else second_switch, "optic"))
+	if machines > 5:
+		nodes.append(node(second_switch, "switch", 300, 150))
+		links.append(link(second_switch, 1, "optic"))
+		links.append(link(second_switch, 0, "optic"))
+	return build({"name": "eco", "players": 2, "nodes": nodes, "links": links}, seed_value)
+
+## Цепочка: ядро P0 — машина (P0) — машина (нейтрал); дальний конец — ядро P1.
+static func chain(seed_value: int = 1) -> World:
+	return build({
+		"name": "chain", "players": 2,
+		"nodes": [
+			node(0, "core", 0, 0, 0),
+			node(1, "machine", 200, 0, 0),
+			node(2, "machine", 400, 0, -1),
+			node(3, "gateway", 0, 200, 0),
+			node(4, "core", 2000, 0, 1),
+		],
+		"links": [link(0, 1), link(1, 2), link(0, 3), link(2, 4, "optic")],
+	}, seed_value)

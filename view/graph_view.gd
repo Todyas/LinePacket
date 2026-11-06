@@ -86,11 +86,40 @@ func _draw_node(n: NodeState, font: Font) -> void:
 	var c: Vector2 = Vector2(n.x, n.y)
 	var pts: PackedVector2Array = shape_points(n.type, c, NODE_RADIUS)
 	draw_colored_polygon(pts, Palette.NODE_FILL)
+	var owner_col: Color = Palette.of_owner(n.owner)
+	if n.owner >= 0 and n.type != Defs.NodeType.CORE:
+		_draw_control_fill(pts, c, n.control, owner_col)
+	elif n.owner >= 0:
+		draw_colored_polygon(pts, Color(owner_col, 0.35))
 	var closed: PackedVector2Array = pts.duplicate()
 	closed.append(pts[0])
-	draw_polyline(closed, Palette.of_owner(n.owner), 3.0, true)
+	draw_polyline(closed, owner_col, 3.0, true)
+	# Кольцо захвата: чем полнее, тем ближе нейтрал к сдаче.
+	if n.owner < 0 and Defs.INIT_NEEDED.has(n.type):
+		var needed: int = int(Defs.INIT_NEEDED[n.type])
+		for p in Defs.MAX_PLAYERS:
+			if n.capture[p] > 0:
+				var frac: float = clampf(float(n.capture[p]) / float(needed), 0.0, 1.0)
+				draw_arc(c, NODE_RADIUS + 12.0 + 4.0 * p, -PI / 2.0, -PI / 2.0 + TAU * frac, 40, Palette.of_owner(p), 4.0, true)
 	var label: String = _node_label(n)
 	draw_string(font, c + Vector2(-20, NODE_RADIUS + 22), label, HORIZONTAL_ALIGNMENT_CENTER, 40, 14, Palette.NEUTRAL)
+	if n.owner >= 0 and n.buffer > 0:
+		draw_string(font, c + Vector2(NODE_RADIUS + 6, -NODE_RADIUS), "%d" % n.buffer, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.85, 0.3))
+
+## Заливка снизу вверх пропорционально контролю.
+func _draw_control_fill(pts: PackedVector2Array, c: Vector2, control: int, col: Color) -> void:
+	var frac: float = clampf(float(control) / float(Defs.CONTROL_MAX), 0.0, 1.0)
+	if frac <= 0.0:
+		return
+	var ext: float = NODE_RADIUS * 1.4
+	var top: float = c.y + ext - 2.0 * ext * frac
+	var rect := PackedVector2Array([
+		Vector2(c.x - ext * 2.0, top), Vector2(c.x + ext * 2.0, top),
+		Vector2(c.x + ext * 2.0, c.y + ext * 2.0), Vector2(c.x - ext * 2.0, c.y + ext * 2.0)])
+	var parts: Array[PackedVector2Array] = Geometry2D.intersect_polygons(pts, rect)
+	for poly in parts:
+		if poly.size() >= 3:
+			draw_colored_polygon(poly, Color(col, 0.55))
 
 func _node_label(n: NodeState) -> String:
 	var prefix: String = "?"

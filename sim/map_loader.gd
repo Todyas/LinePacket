@@ -124,6 +124,14 @@ static func load_dict(d: Dictionary, seed_value: int) -> Dictionary:
 	if not errors.is_empty():
 		return _fail("; ".join(errors))
 
+	for n in w.nodes:
+		# Разводим фазы автоматических пакетов, чтобы узлы не слали пачками в один тик.
+		n.produce_acc = (n.id * 7) % Defs.TICK_HZ
+		n.ka_acc = (n.id * 11) % Defs.TICK_HZ
+		if n.owner >= 0:
+			n.control = Defs.CONTROL_MAX
+		if n.type == Defs.NodeType.GATEWAY:
+			n.gw_credit = Defs.GATEWAY_CAP_PER_S * Defs.GATEWAY_BURST_TICKS
 	for p in player_count:
 		var ps := PlayerState.new()
 		ps.id = p
@@ -134,6 +142,7 @@ static func load_dict(d: Dictionary, seed_value: int) -> Dictionary:
 	if not _connected(w):
 		return _fail("граф карты несвязный")
 	Routing.compute(w)
+	Economy.refresh_targets(w)
 	return {"world": w, "error": ""}
 
 static func _connected(w: World) -> bool:

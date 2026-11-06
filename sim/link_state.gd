@@ -44,7 +44,7 @@ func load_pct(d: int) -> int:
 	for v in sent_hist[d]:
 		total += v
 	var util: int = total * 100 / capacity
-	var fill: int = port_units[d] * 100 / queue_limit
+	var fill: int = port_units[d] * 100 / maxi(1, queue_limit)
 	return mini(100, maxi(util, fill))
 
 func in_flight_count() -> int:

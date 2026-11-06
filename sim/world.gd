@@ -13,13 +13,15 @@ var flows: Array[FlowState] = []
 var next_flow_id: int = 1
 var pool: PacketPool = PacketPool.new()
 var routes: Array[PackedInt32Array] = []   # routes[dst][node] = id линка следующего шага или -1
+var route_dist: Array[PackedInt64Array] = []   # route_dist[dst][node] = цена пути node→dst
 var routes_dirty: bool = true
 
 ## Потери по причинам и доставки по типам пакетов (накопительно).
 const DROP_QUEUE: int = 0     # очередь выходного порта переполнена
 const DROP_CPU: int = 1       # у узла не хватило CPU
 const DROP_NOROUTE: int = 2   # нет маршрута
-var drops: PackedInt32Array = PackedInt32Array([0, 0, 0])
+const DROP_GATEWAY: int = 3   # потолок шлюза или чужой шлюз
+var drops: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
 var delivered: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0, 0, 0])
 ## Недавние потери для отрисовки: [тик, id линка, направление]. В хеш не входит.
 var recent_drops: Array = []
@@ -125,7 +127,7 @@ func _apply_set_flow_rate(c: Command) -> bool:
 	return true
 
 func total_drops() -> int:
-	return drops[DROP_QUEUE] + drops[DROP_CPU] + drops[DROP_NOROUTE]
+	return drops[DROP_QUEUE] + drops[DROP_CPU] + drops[DROP_NOROUTE] + drops[DROP_GATEWAY]
 
 func get_flow(fid: int) -> FlowState:
 	for f in flows:

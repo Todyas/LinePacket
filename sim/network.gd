@@ -5,12 +5,16 @@ extends RefCounted
 static func step(w: World) -> void:
 	if w.routes_dirty or w.tick % Defs.ROUTE_RECALC_TICKS == 0:
 		Routing.compute(w)
+		Economy.refresh_targets(w)
 	for n in w.nodes:
 		n.cpu_used_tick = 0
 		n.cpu_credit = mini(n.cpu_credit + n.cpu_per_s, n.cpu_per_s * Defs.BURST_TICKS)
+	Economy.begin_tick(w)
 	_process_arrivals(w)
 	_emit_flows(w)
+	Economy.emit(w)
 	_drain_ports(w)
+	Economy.upkeep(w)
 	var slot: int = w.tick % Defs.LOAD_WINDOW
 	for n in w.nodes:
 		n.cpu_hist[slot] = n.cpu_used_tick

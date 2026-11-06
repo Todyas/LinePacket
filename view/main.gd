@@ -11,6 +11,7 @@ var drops_fx: DropFx
 var input_ctl: InputCtl
 var camera: CameraCtl
 var overlay: DebugOverlay
+var hud: Hud
 var local_player: int = 0
 var _acc: float = 0.0
 var _step_ms_avg: float = 0.0
@@ -47,6 +48,11 @@ func _ready() -> void:
 	input_ctl.local_player = local_player
 	input_ctl.z_index = 4
 	add_child(input_ctl)
+	hud = Hud.new()
+	hud.world = world
+	hud.player = local_player
+	hud.input_ctl = input_ctl
+	add_child(hud)
 	overlay = DebugOverlay.new()
 	overlay.world = world
 	add_child(overlay)
