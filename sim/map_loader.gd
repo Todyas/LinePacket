@@ -53,6 +53,8 @@ static func load_dict(d: Dictionary, seed_value: int) -> Dictionary:
 		n.owner = _as_int(nd.get("owner", Defs.NEUTRAL), "узел %d: owner" % i, errors)
 		if n.owner != Defs.NEUTRAL and (n.owner < 0 or n.owner >= player_count):
 			errors.append("узел %d: владелец %d вне диапазона игроков" % [i, n.owner])
+		if Defs.NODE_DEFS.has(n.type):
+			n.setup_cpu()
 		w.nodes.append(n)
 
 	var seen_pairs: Dictionary = {}
@@ -91,6 +93,9 @@ static func load_dict(d: Dictionary, seed_value: int) -> Dictionary:
 		l.length = IntMath.isqrt(dx * dx + dy * dy)
 		l.latency = maxi(Defs.LINK_MIN_LATENCY, IntMath.ceil_div(l.length, int(ldef["speed"])))
 		l.capacity = int(ldef["capacity"])
+		l.queue_limit = int(ldef["queue"])
+		l.credit[0] = l.credit_cap()
+		l.credit[1] = l.credit_cap()
 		w.links.append(l)
 		na.links.append(l.id)
 		nb.links.append(l.id)
@@ -128,6 +133,7 @@ static func load_dict(d: Dictionary, seed_value: int) -> Dictionary:
 	# Связность графа.
 	if not _connected(w):
 		return _fail("граф карты несвязный")
+	Routing.compute(w)
 	return {"world": w, "error": ""}
 
 static func _connected(w: World) -> bool:

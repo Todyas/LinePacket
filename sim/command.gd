@@ -2,7 +2,7 @@ class_name Command
 extends RefCounted
 ## Единственный способ изменить мир. Игрок, бот, сеть и реплей кладут команды в очередь.
 
-enum Type { NOOP, START_FLOW, STOP_FLOW }
+enum Type { NOOP, START_FLOW, STOP_FLOW, SET_FLOW_RATE }
 
 var type: int = Type.NOOP
 var player: int = 0
@@ -22,6 +22,9 @@ static func start_flow(p: int, at_tick: int, src: int, dst: int, ptype: int, rat
 
 static func stop_flow(p: int, at_tick: int, flow_id: int) -> Command:
 	return make(Type.STOP_FLOW, p, at_tick, [flow_id])
+
+static func set_flow_rate(p: int, at_tick: int, flow_id: int, rate: int) -> Command:
+	return make(Type.SET_FLOW_RATE, p, at_tick, [flow_id, rate])
 
 func to_array() -> Array:
 	return [tick, type, player, args]

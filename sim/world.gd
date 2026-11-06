@@ -11,6 +11,18 @@ var links: Array[LinkState] = []
 var players: Array[PlayerState] = []
 var flows: Array[FlowState] = []
 var next_flow_id: int = 1
+var pool: PacketPool = PacketPool.new()
+var routes: Array[PackedInt32Array] = []   # routes[dst][node] = id линка следующего шага или -1
+var routes_dirty: bool = true
+
+## Потери по причинам и доставки по типам пакетов (накопительно).
+const DROP_QUEUE: int = 0     # очередь выходного порта переполнена
+const DROP_CPU: int = 1       # у узла не хватило CPU
+const DROP_NOROUTE: int = 2   # нет маршрута
+var drops: PackedInt32Array = PackedInt32Array([0, 0, 0])
+var delivered: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0, 0, 0, 0])
+## Недавние потери для отрисовки: [тик, id линка, направление]. В хеш не входит.
+var recent_drops: Array = []
 
 var _pending: Dictionary = {}               # tick -> Array[Command]
 var applied_log: Array[Command] = []        # применённые команды по порядку (для реплея)
@@ -35,6 +47,7 @@ func step() -> void:
 		for c in list:
 			_apply(c as Command)
 		_pending.erase(tick)
+	Network.step(self)
 	tick += 1
 
 func run(ticks: int) -> void:
@@ -50,6 +63,8 @@ func _apply(c: Command) -> void:
 			ok = _apply_start_flow(c)
 		Command.Type.STOP_FLOW:
 			ok = _apply_stop_flow(c)
+		Command.Type.SET_FLOW_RATE:
+			ok = _apply_set_flow_rate(c)
 		_:
 			ok = false
 	if ok:
@@ -97,6 +112,21 @@ func _apply_stop_flow(c: Command) -> bool:
 			return true
 	return false
 
+func _apply_set_flow_rate(c: Command) -> bool:
+	if c.args.size() != 2:
+		return false
+	var f: FlowState = get_flow(c.args[0])
+	if f == null or f.owner != c.player:
+		return false
+	var rate: int = c.args[1]
+	if rate < Defs.FLOW_MIN_RATE or rate > Defs.FLOW_MAX_RATE:
+		return false
+	f.rate = rate
+	return true
+
+func total_drops() -> int:
+	return drops[DROP_QUEUE] + drops[DROP_CPU] + drops[DROP_NOROUTE]
+
 func get_flow(fid: int) -> FlowState:
 	for f in flows:
 		if f.id == fid:
@@ -121,4 +151,7 @@ func state_hash() -> int:
 	h.add(flows.size())
 	for f in flows:
 		f.hash_into(h)
+	pool.hash_into(h)
+	h.add_array(Array(drops))
+	h.add_array(Array(delivered))
 	return h.result()

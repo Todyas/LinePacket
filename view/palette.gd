@@ -11,6 +11,8 @@ const PLAYERS: Array[Color] = [
 ]
 const BACKGROUND: Color = Color(0.055, 0.065, 0.085)
 const LINK: Color = Color(0.22, 0.26, 0.32)
+const LINK_HOT: Color = Color(0.75, 0.85, 0.95)
+const OVERLOAD: Color = Color(1.0, 0.2, 0.18)
 const NODE_FILL: Color = Color(0.09, 0.11, 0.14)
 
 static func of_owner(owner: int) -> Color:

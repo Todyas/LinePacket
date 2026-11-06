@@ -19,10 +19,10 @@ const NODE_TYPE_NAMES: Dictionary = {
 ## cpu — пакетов в секунду, которые узел может обработать;
 ## ports — максимум линков; can_own — можно ли владеть.
 const NODE_DEFS: Dictionary = {
-	NodeType.CORE: {"cpu": 40, "ports": 6, "can_own": true},
-	NodeType.MACHINE: {"cpu": 20, "ports": 4, "can_own": true},
-	NodeType.GATEWAY: {"cpu": 40, "ports": 5, "can_own": true},
-	NodeType.SWITCH: {"cpu": 80, "ports": 8, "can_own": false},
+	NodeType.CORE: {"cpu": 60, "ports": 6, "can_own": true},
+	NodeType.MACHINE: {"cpu": 40, "ports": 4, "can_own": true},
+	NodeType.GATEWAY: {"cpu": 80, "ports": 5, "can_own": true},
+	NodeType.SWITCH: {"cpu": 200, "ports": 8, "can_own": false},
 }
 
 ## Типы линков.
@@ -73,3 +73,31 @@ const PACKET_SIZE: Dictionary = {
 ## Какие типы игрок может пускать потоком (остальные идут автоматически).
 ## Список растёт вместе со спринтами по мере появления механик.
 const PLAYER_FLOW_TYPES: Array = [PacketType.FLOOD]
+
+## --- Сеть (S1) ---
+
+## Сколько CPU стоит пакету прибытие в точку назначения (по типу).
+const CPU_COST_ARRIVE: Dictionary = {
+	PacketType.DATA: 1,
+	PacketType.KEEPALIVE: 1,
+	PacketType.INIT: 1,
+	PacketType.SCAN: 1,
+	PacketType.FLOOD: 2,
+	PacketType.PAYLOAD: 2,
+	PacketType.PAYLOAD_HIDDEN: 2,
+	PacketType.AGENT: 1,
+}
+## Транзит через узел и рождение пакета на узле — по 1 единице CPU.
+const CPU_COST_TRANSIT: int = 1
+const CPU_COST_EMIT: int = 1
+## Накопленный CPU/канал не копится дольше этого числа тиков (ограничение «всплеска»).
+const BURST_TICKS: int = 4
+## Минимальный запас кредита канала, чтобы мог пройти самый крупный пакет.
+const CREDIT_FLOOR: int = TICK_HZ * 5
+
+## Маршруты: пересчёт раз в секунду; цена = задержка*вес + загрузка(0..100)*штраф.
+const ROUTE_RECALC_TICKS: int = 20
+const ROUTE_LATENCY_WEIGHT: int = 10
+const ROUTE_LOAD_PENALTY: int = 3
+## Скользящее окно загрузки: ровно одна секунда.
+const LOAD_WINDOW: int = TICK_HZ

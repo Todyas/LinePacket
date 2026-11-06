@@ -3,6 +3,10 @@ extends Node2D
 ## Рисует граф: форма узла по типу, цвет обводки по владельцу. Только читает мир.
 
 var world: World
+## Что рисует экземпляр: линки и потоки или узлы (так пакеты оказываются между слоями).
+var draw_links: bool = true
+var draw_nodes: bool = false
+var hover_flow: int = -1
 
 const NODE_RADIUS: float = 22.0
 
@@ -12,6 +16,15 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	if world == null:
 		return
+	if draw_links:
+		_draw_links()
+		_draw_flows()
+	if draw_nodes:
+		var font: Font = ThemeDB.fallback_font
+		for n in world.nodes:
+			_draw_node(n, font)
+
+func _draw_links() -> void:
 	for l in world.links:
 		var a: NodeState = world.nodes[l.a]
 		var b: NodeState = world.nodes[l.b]
@@ -21,10 +34,30 @@ func _draw() -> void:
 				width = 4.0
 			Defs.LinkKind.WIFI:
 				width = 1.5
-		draw_line(Vector2(a.x, a.y), Vector2(b.x, b.y), Palette.LINK, width, true)
+		var load_pct: int = maxi(l.load_pct(0), l.load_pct(1))
+		draw_line(Vector2(a.x, a.y), Vector2(b.x, b.y), link_color(load_pct), width, true)
+
+## Яркость растёт с загрузкой, перегруз — красный.
+static func link_color(load_pct: int) -> Color:
+	if load_pct >= 90:
+		return Palette.OVERLOAD
+	return Palette.LINK.lerp(Palette.LINK_HOT, float(load_pct) / 90.0)
+
+func _draw_flows() -> void:
 	var font: Font = ThemeDB.fallback_font
-	for n in world.nodes:
-		_draw_node(n, font)
+	for f in world.flows:
+		var path: Array[int] = Routing.path(world, f.src, f.dst)
+		if path.size() < 2:
+			continue
+		var col: Color = Palette.of_owner(f.owner)
+		var hot: bool = f.id == hover_flow
+		col.a = 0.9 if hot else 0.35
+		var pts := PackedVector2Array()
+		for nid in path:
+			pts.append(Vector2(world.nodes[nid].x, world.nodes[nid].y))
+		draw_polyline(pts, col, 5.0 if hot else 2.5, true)
+		var mid: Vector2 = (pts[0] + pts[1]) * 0.5 + Vector2(6, -8)
+		draw_string(font, mid, "%d/с" % f.rate, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, col)
 
 func shape_points(type: int, center: Vector2, r: float) -> PackedVector2Array:
 	var pts := PackedVector2Array()

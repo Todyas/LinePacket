@@ -7,6 +7,7 @@ var src: int = 0
 var dst: int = 0
 var ptype: int = 0
 var rate: int = 1   # пакетов в секунду
+var acc: int = 0    # накопитель дробной части: rate за тик, пакет за TICK_HZ
 
 func hash_into(h: Hasher) -> void:
 	h.add(id)
@@ -15,3 +16,4 @@ func hash_into(h: Hasher) -> void:
 	h.add(dst)
 	h.add(ptype)
 	h.add(rate)
+	h.add(acc)
