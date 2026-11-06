@@ -14,6 +14,8 @@ var _last_scan: int = -100000
 var _dist_to_enemy_core: PackedInt32Array = PackedInt32Array()
 var _enemy_core: int = -1
 var _started_attack: bool = false
+var _flow_since: Dictionary = {}      # id потока -> тик, когда бот впервые его увидел
+var _skip_until: Dictionary = {}      # нейтральный узел -> тик, до которого не берём (спор с соперником)
 
 func _init(view: BotView, seed_value: int, profile: Dictionary = Defs.BOT_PROFILE) -> void:
 	v = view
@@ -63,6 +65,15 @@ func _under_threat(n: int) -> bool:
 # --- Потоки ---
 
 func _drop_stale_flows() -> void:
+	var seen: Dictionary = {}
+	for f in v.my_flows():
+		var fid: int = int(f["id"])
+		seen[fid] = true
+		if not _flow_since.has(fid):
+			_flow_since[fid] = v.tick()
+	for fid in _flow_since.keys():
+		if not seen.has(fid):
+			_flow_since.erase(fid)
 	for f in v.my_flows():
 		var t: int = int(f["ptype"])
 		var dst: int = int(f["dst"])
@@ -74,6 +85,10 @@ func _drop_stale_flows() -> void:
 				dead = true
 		elif t == Defs.PacketType.INIT:
 			dead = o != Defs.NEUTRAL
+			# Соперник бьёт INIT в ту же цель и сбивает шкалу: ни у кого не выходит. Уступаем на время.
+			if not dead and o == Defs.NEUTRAL and v.tick() - int(_flow_since[int(f["id"])]) > int(prof["init_timeout_s"]) * Defs.TICK_HZ:
+				dead = true
+				_skip_until[dst] = v.tick() + int(prof["init_cooldown_s"]) * Defs.TICK_HZ
 		if dead:
 			v.submit(Command.stop_flow(me, v.tick(), int(f["id"])))
 
@@ -249,6 +264,8 @@ func _expand(mine: Array[int]) -> void:
 	var best_src: int = -1
 	for n in v.node_count():
 		if v.owner_of(n) != Defs.NEUTRAL or not Defs.INIT_NEEDED.has(v.node_type(n)) or _has_flow_to(Defs.PacketType.INIT, n):
+			continue
+		if _skip_until.has(n) and v.tick() < int(_skip_until[n]):
 			continue
 		var src: int = _nearest_mine(mine, n)
 		if src < 0 or v.hops(src, n) > int(prof["expand_hops"]):

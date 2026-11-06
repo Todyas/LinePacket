@@ -75,6 +75,7 @@ func open(screen_pos: Vector2, items: Array[Dictionary]) -> void:
 		var b := Button.new()
 		b.text = items[i]["label"]
 		b.size = Vector2(210, 32)
+		b.tooltip_text = Hints.ring_item(items[i])
 		b.position = screen_pos + Vector2(cos(ang) * rx, sin(ang) * ry) - b.size * 0.5
 		var item: Dictionary = items[i]
 		b.pressed.connect(func() -> void:

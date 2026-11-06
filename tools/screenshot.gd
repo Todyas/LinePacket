@@ -16,16 +16,30 @@ func _initialize() -> void:
 		_target = int(args[1]) * 60
 	if args.size() > 2:
 		_scenario = args[2]
+	if _scenario == "menu":
+		root.add_child(load("res://view/menu.tscn").instantiate())
+		return
 	_main = load("res://view/main.tscn").instantiate()
 	root.add_child(_main)
 
 func _process(_delta: float) -> bool:
 	_frames += 1
+	if _scenario == "menu":
+		if _frames >= 10:
+			root.get_texture().get_image().save_png(_out)
+			quit(0)
+		return false
 	if _frames == 5 and _main.world != null:
 		_setup_scenario()
 	if _scenario == "ui" and _frames == _target - 2:
 		_main.input_ctl.ring_target = 3
 		_main.ring.open(Vector2(420, 640), RingMenu.items_for(_main.world, 0, 2, 3))
+	if _scenario == "tip" and _frames == _target - 2:
+		var nd: NodeState = _main.world.nodes[_main.world.players[0].core_node]
+		var pos: Vector2 = _main.camera.get_canvas_transform() * Vector2(nd.x, nd.y)
+		_main.tip.show_text(Hints.node(_main.world, 0, nd.id), pos)
+	if _scenario == "pause" and _frames == _target - 2:
+		_main.set_paused(true)
 	if _frames >= _target:
 		_main.hud._process(0.0)
 		var img: Image = root.get_texture().get_image()

@@ -18,6 +18,10 @@ var hover_flow: int = -1
 var mouse_world: Vector2 = Vector2.ZERO
 var _panning: bool = false
 var ring_target: int = -1
+## Пауза: ввод в мир заморожен, работают только Пробел и Esc (снять паузу).
+var paused: bool = false
+
+signal pause_toggled
 
 const MODE_KEYS: Dictionary = {
 	KEY_F: Defs.PacketType.FLOOD,
@@ -29,6 +33,8 @@ const MODE_KEYS: Dictionary = {
 
 func _unhandled_input(event: InputEvent) -> void:
 	if world == null:
+		return
+	if paused and not event is InputEventKey:
 		return
 	if event is InputEventMouseMotion:
 		var mm: InputEventMouseMotion = event
@@ -101,6 +107,13 @@ func _wheel(screen_pos: Vector2, dir: int) -> void:
 func _on_key(k: InputEventKey) -> void:
 	if not k.pressed or k.echo:
 		return
+	if k.keycode == KEY_SPACE:
+		pause_toggled.emit()
+		return
+	if paused:
+		if k.keycode == KEY_ESCAPE:
+			pause_toggled.emit()
+		return
 	if MODE_KEYS.has(k.keycode):
 		var t: int = MODE_KEYS[k.keycode]
 		if Defs.PLAYER_FLOW_TYPES.has(t):
@@ -112,8 +125,12 @@ func _on_key(k: InputEventKey) -> void:
 	elif k.keycode == KEY_ESCAPE:
 		if ring != null and ring.is_open:
 			ring.close()
-		else:
+		elif selected_node >= 0 or drag_from >= 0:
 			selected_node = -1
+			drag_from = -1
+			queue_redraw()
+		else:
+			pause_toggled.emit()   # нечего закрывать: Esc открывает паузу
 	elif k.keycode == KEY_X or k.keycode == KEY_DELETE:
 		if hover_flow >= 0:
 			submit(Command.stop_flow(local_player, world.tick, hover_flow))

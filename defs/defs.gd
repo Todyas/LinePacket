@@ -302,6 +302,8 @@ enum ActivateMode { TAKEOVER, DISABLE_SOFT }
 const BOT_PROFILE: Dictionary = {
 	"think_ticks": 10,          # раз в полсекунды
 	"reserve": 5,               # байт, которые не тратит на задачи агентов
+	"init_timeout_s": 45,       # захват нейтрала дольше этого — спор с соперником, уступаем
+	"init_cooldown_s": 90,      # и столько не возвращаемся к этой цели
 	"max_init_flows": 2,        # одновременных захватов нейтралов
 	"base_nodes": 4,            # сколько узлов держит без шлюзов
 	"nodes_per_gateway": 4,     # и сколько прибавляет на каждый шлюз

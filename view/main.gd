@@ -1,7 +1,7 @@
 extends Node2D
 ## Главная сцена: карта, тик симуляции 20 Гц, граф, пакеты, ввод, отладочный оверлей.
 
-const MAP_PATH: String = "res://maps/duel.json"
+const MAP_PATH: String = GameConfig.MAP_PATH
 
 var world: World
 var links_view: GraphView
@@ -17,21 +17,29 @@ var agent_panel: AgentPanel
 var ring: RingMenu
 var end_screen: EndScreen
 var feed: EventFeed
+var pause_screen: PauseScreen
+var tip: HoverTip
+## Бот ведёт сторону, противоположную человеку. F2 (debug) отключает его.
+var bot: Bot
+var paused: bool = false
 ## Туман войны; в debug-сборке клавиша F4 включает всеведущий взгляд для отладки.
 var fog_enabled: bool = true
-var local_player: int = 0
+var local_player: int = GameConfig.player_side
 var _acc: float = 0.0
 var _step_ms_avg: float = 0.0
 var _drop_hist: PackedInt32Array = PackedInt32Array()
 
 func _ready() -> void:
 	RenderingServer.set_default_clear_color(Palette.BACKGROUND)
-	var res: Dictionary = MapLoader.load_file(MAP_PATH, 1)
+	var res: Dictionary = MapLoader.load_file(MAP_PATH, GameConfig.seed_value)
 	if res["world"] == null:
 		push_error(res["error"])
 		return
 	world = res["world"]
 	_drop_hist.resize(Defs.TICK_HZ)
+	if GameConfig.vs_bot and world.players.size() > 1:
+		var bot_side: int = (GameConfig.player_side + 1) % world.players.size()
+		bot = Bot.new(BotView.new(world, bot_side), GameConfig.seed_value)
 	links_view = GraphView.new()
 	links_view.world = world
 	add_child(links_view)
@@ -82,6 +90,28 @@ func _ready() -> void:
 	overlay = DebugOverlay.new()
 	overlay.world = world
 	add_child(overlay)
+	tip = HoverTip.new()
+	tip.world = world
+	tip.camera = camera
+	tip.input_ctl = input_ctl
+	add_child(tip)
+	pause_screen = PauseScreen.new()
+	add_child(pause_screen)
+	pause_screen.resume_requested.connect(set_paused.bind(false))
+	pause_screen.menu_requested.connect(func() -> void: get_tree().change_scene_to_file("res://view/menu.tscn"))
+	input_ctl.pause_toggled.connect(func() -> void:
+		if world.winner < 0:
+			set_paused(not paused))
+
+func set_paused(value: bool) -> void:
+	paused = value
+	input_ctl.paused = value
+	pause_screen.visible = value
+	if value:
+		input_ctl.drag_from = -1
+		input_ctl.queue_redraw()
+		if input_ctl.ring != null:
+			input_ctl.ring.close()
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	var k := event as InputEventKey
@@ -91,11 +121,16 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if world == null:
 		return
+	if paused:
+		return
 	_acc += delta
 	var step_s: float = 1.0 / float(Defs.TICK_HZ)
 	var guard: int = 0
 	while _acc >= step_s and guard < 5:
 		var t0: int = Time.get_ticks_usec()
+		# Бот ходит перед тиком, как игрок: его команды ставятся на текущий тик.
+		if bot != null and local_player == GameConfig.player_side:
+			bot.act()
 		world.step()
 		var ms: float = float(Time.get_ticks_usec() - t0) / 1000.0
 		_step_ms_avg = lerpf(_step_ms_avg, ms, 0.1)
@@ -113,6 +148,7 @@ func _process(delta: float) -> void:
 	links_view.viewer = viewer
 	nodes_view.viewer = viewer
 	card.viewer = viewer
+	tip.viewer = viewer
 	hud.player = local_player
 	agent_panel.player = local_player
 	end_screen.local_player = local_player

@@ -91,3 +91,26 @@ func test_bot_rarely_issues_rejected_commands() -> void:
 	var w: World = _duel(7)
 	_play(w, _bots(w, 7), 20 * 240)
 	check(w.rejected_count <= w.applied_log.size() / 10 + 3, "отвергнуто %d из %d команд" % [w.rejected_count, w.applied_log.size() + w.rejected_count])
+
+func test_bot_yields_contested_neutral_instead_of_deadlocking() -> void:
+	# Оба бьют INIT в один нейтрал с равной скоростью: шкалы гасят друг друга. Бот должен уступить.
+	var w: World = TestMaps.build({
+		"name": "dispute", "players": 2,
+		"nodes": [TestMaps.node(0, "core", 0, 0, 0), TestMaps.node(1, "machine", 300, 0), TestMaps.node(2, "core", 600, 0, 1)],
+		"links": [TestMaps.link(0, 1), TestMaps.link(1, 2)],
+	})
+	var bot := Bot.new(BotView.new(w, 0), 1)
+	w.submit(Command.start_flow(1, 0, 2, 1, Defs.PacketType.INIT, 12))
+	for i in 20 * 25:
+		bot.act()
+		w.step()
+	check_eq(w.nodes[1].owner, Defs.NEUTRAL, "спор: никто не взял за 25 с")
+	var bot_init: int = 0
+	for f in w.flows:
+		if f.owner == 0 and f.ptype == Defs.PacketType.INIT:
+			bot_init += 1
+	check(bot_init > 0, "бот пока бьёт в цель")
+	for i in 20 * 50:
+		bot.act()
+		w.step()
+	check_eq(w.nodes[1].owner, 1, "бот уступил, соперник взял узел")

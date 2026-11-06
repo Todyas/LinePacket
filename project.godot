@@ -4,7 +4,7 @@ config_version=5
 [application]
 
 config/name="LinePacket"
-run/main_scene="res://view/main.tscn"
+run/main_scene="res://view/menu.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")
 
 [display]

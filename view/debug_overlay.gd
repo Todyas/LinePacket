@@ -1,6 +1,6 @@
 class_name DebugOverlay
 extends CanvasLayer
-## F3: FPS, тик, пакеты в полёте, потери в секунду, время тика симуляции.
+## F3 (только в debug-сборке): FPS, тик, пакеты в полёте, потери в секунду, время тика симуляции.
 
 var label: Label
 var step_ms: float = 0.0
@@ -18,7 +18,7 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey:
 		var k: InputEventKey = event
-		if k.pressed and not k.echo and k.keycode == KEY_F3:
+		if k.pressed and not k.echo and k.keycode == KEY_F3 and OS.is_debug_build():
 			visible = not visible
 
 func _process(_delta: float) -> void:

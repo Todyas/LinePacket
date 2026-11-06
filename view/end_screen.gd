@@ -7,25 +7,32 @@ var local_player: int = 0
 var _panel: Panel
 var _label: Label
 var _button: Button
+var _menu_button: Button
 
 func _ready() -> void:
 	layer = 10
 	_panel = Panel.new()
-	_panel.position = Vector2(500, 260)
-	_panel.size = Vector2(600, 300)
+	_panel.position = Vector2(500, 240)
+	_panel.size = Vector2(600, 360)
 	_panel.add_theme_stylebox_override("panel", UiStyle.panel())
 	add_child(_panel)
 	_label = Label.new()
 	_label.position = Vector2(24, 18)
-	_label.size = Vector2(552, 200)
+	_label.size = Vector2(552, 250)
 	_label.add_theme_font_size_override("font_size", 22)
 	_panel.add_child(_label)
 	_button = Button.new()
 	_button.text = "Сыграть ещё раз"
-	_button.position = Vector2(200, 236)
-	_button.size = Vector2(200, 40)
+	_button.position = Vector2(60, 296)
+	_button.size = Vector2(220, 44)
 	_button.pressed.connect(func() -> void: get_tree().reload_current_scene())
 	_panel.add_child(_button)
+	_menu_button = Button.new()
+	_menu_button.text = "В главное меню"
+	_menu_button.position = Vector2(320, 296)
+	_menu_button.size = Vector2(220, 44)
+	_menu_button.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://view/menu.tscn"))
+	_panel.add_child(_menu_button)
 	_panel.visible = false
 
 func _process(_delta: float) -> void:
@@ -45,5 +52,5 @@ static func text_for(w: World, viewer: int) -> String:
 	lines.append("Время матча: %d:%02d" % [secs / 60, secs % 60])
 	for p in w.players.size():
 		var pl: PlayerState = w.players[p]
-		lines.append("%s: захватов %d, банк %d" % [Names.owner_name(p), pl.captures, pl.bank])
+		lines.append("%s: захватов %d, заработано %d Б, банк %d Б" % [Names.owner_name(p), pl.captures, pl.earned_total, pl.bank])
 	return "\n".join(lines)
