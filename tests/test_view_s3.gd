@@ -73,7 +73,10 @@ func test_ring_menu_items_for_neutral_and_enemy() -> void:
 		kinds.append(it["label"])
 	check(" | ".join(kinds).contains("Захватить"), " | ".join(kinds))
 	check(" | ".join(kinds).contains("Флуд"))
-	check(RingMenu.items_for(w, 0, -1, 2).is_empty(), "без выбранного своего узла потоков в меню нет")
+	var no_src: Array[String] = []
+	for it in RingMenu.items_for(w, 0, -1, 2):
+		no_src.append(it["label"])
+	check(not " | ".join(no_src).contains("Захватить"), "без источника потоков в items_for нет; источник подбирает source_for")
 	check(RingMenu.items_for(w, 0, 1, -1).is_empty())
 
 func test_apply_ring_item_sends_commands() -> void:
@@ -86,6 +89,7 @@ func test_apply_ring_item_sends_commands() -> void:
 	ic.ring_target = 1
 	ic.apply_item({"label": "x", "kind": "task", "task": Defs.TaskKind.SET_KEYS, "arg": 0})
 	ic.ring_target = 2
+	ic.ring_source = 1
 	ic.apply_item({"label": "y", "kind": "flow", "flow_type": Defs.PacketType.INIT})
 	w.step()
 	check_eq(Agents.agent_of(w, 0, 2).queue.size(), 1)

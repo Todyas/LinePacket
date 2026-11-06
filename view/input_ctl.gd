@@ -18,18 +18,29 @@ var hover_flow: int = -1
 var mouse_world: Vector2 = Vector2.ZERO
 var _panning: bool = false
 var ring_target: int = -1
+## Узел, с которого пойдут потоки из меню: выбранный свой или ближайший свой к цели.
+var ring_source: int = -1
 ## Пауза: ввод в мир заморожен, работают только Пробел и Esc (снять паузу).
 var paused: bool = false
 
 signal pause_toggled
+signal speed_step(dir: int)
 
+## Типы потоков на левой руке: Q W E R T.
 const MODE_KEYS: Dictionary = {
-	KEY_F: Defs.PacketType.FLOOD,
-	KEY_I: Defs.PacketType.INIT,
-	KEY_P: Defs.PacketType.PAYLOAD,
-	KEY_H: Defs.PacketType.PAYLOAD_HIDDEN,
-	KEY_S: Defs.PacketType.SCAN,
+	KEY_Q: Defs.PacketType.INIT,
+	KEY_W: Defs.PacketType.FLOOD,
+	KEY_E: Defs.PacketType.PAYLOAD,
+	KEY_R: Defs.PacketType.PAYLOAD_HIDDEN,
+	KEY_T: Defs.PacketType.SCAN,
 }
+
+## Подпись клавиши типа потока.
+static func key_label(ptype: int) -> String:
+	for k in MODE_KEYS:
+		if MODE_KEYS[k] == ptype:
+			return OS.get_keycode_string(k)
+	return "?"
 
 func _unhandled_input(event: InputEvent) -> void:
 	if world == null:
@@ -48,6 +59,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventKey:
 		_on_key(event as InputEventKey)
 
+## Радиус попадания по узлу постоянен на экране, при любом масштабе камеры.
+func _hit_radius() -> float:
+	return NODE_HIT_RADIUS / camera.zoom.x
+
 func _on_button(mb: InputEventMouseButton) -> void:
 	mouse_world = camera.screen_to_world(mb.position)
 	match mb.button_index:
@@ -56,7 +71,7 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				if ring != null and ring.is_open:
 					ring.close()
 				_press_pos = mb.position
-				var nid: int = Picking.hit_node(world, mouse_world, NODE_HIT_RADIUS)
+				var nid: int = Picking.hit_node(world, mouse_world, _hit_radius())
 				if nid >= 0 and world.nodes[nid].owner == local_player:
 					drag_from = nid
 				else:
@@ -65,20 +80,21 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				_panning = false
 				var is_click: bool = mb.position.distance_to(_press_pos) < 6.0
 				if drag_from >= 0:
-					var target: int = Picking.hit_node(world, mouse_world, NODE_HIT_RADIUS)
+					var target: int = Picking.hit_node(world, mouse_world, _hit_radius())
 					if target >= 0 and target != drag_from:
 						_finish_drag()
 					else:
 						selected_node = drag_from
 				elif is_click:
-					selected_node = Picking.hit_node(world, mouse_world, NODE_HIT_RADIUS)
+					selected_node = Picking.hit_node(world, mouse_world, _hit_radius())
 				drag_from = -1
 			queue_redraw()
 		MOUSE_BUTTON_RIGHT:
 			if mb.pressed and ring != null:
-				var tgt: int = Picking.hit_node(world, mouse_world, NODE_HIT_RADIUS)
-				var items: Array[Dictionary] = RingMenu.items_for(world, local_player, selected_node, tgt)
+				var tgt: int = Picking.hit_node(world, mouse_world, _hit_radius())
 				ring_target = tgt
+				ring_source = RingMenu.source_for(world, local_player, selected_node, tgt)
+				var items: Array[Dictionary] = RingMenu.items_for(world, local_player, ring_source, tgt)
 				ring.open(mb.position, items)
 		MOUSE_BUTTON_MIDDLE:
 			_panning = mb.pressed
@@ -90,7 +106,7 @@ func _on_button(mb: InputEventMouseButton) -> void:
 				_wheel(mb.position, -1)
 
 func _finish_drag() -> void:
-	var target: int = Picking.hit_node(world, mouse_world, NODE_HIT_RADIUS)
+	var target: int = Picking.hit_node(world, mouse_world, _hit_radius())
 	if target >= 0 and target != drag_from:
 		submit(Command.start_flow(local_player, world.tick, drag_from, target, flow_type, flow_rate_for(flow_type)))
 
@@ -109,6 +125,12 @@ func _on_key(k: InputEventKey) -> void:
 		return
 	if k.keycode == KEY_SPACE:
 		pause_toggled.emit()
+		return
+	if k.keycode == KEY_MINUS or k.keycode == KEY_KP_SUBTRACT:
+		speed_step.emit(-1)
+		return
+	if k.keycode == KEY_EQUAL or k.keycode == KEY_KP_ADD:
+		speed_step.emit(1)
 		return
 	if paused:
 		if k.keycode == KEY_ESCAPE:
@@ -157,8 +179,8 @@ func apply_item(item: Dictionary) -> void:
 		submit(Command.queue_task(local_player, world.tick, selected_agent, int(item["task"]), ring_target, int(item["arg"])))
 	elif item["kind"] == "activate":
 		submit(Command.activate(local_player, world.tick, ring_target, int(item["mode"])))
-	elif item["kind"] == "flow" and selected_node >= 0:
-		submit(Command.start_flow(local_player, world.tick, selected_node, ring_target, int(item["flow_type"]), flow_rate_for(int(item["flow_type"]))))
+	elif item["kind"] == "flow" and ring_source >= 0:
+		submit(Command.start_flow(local_player, world.tick, ring_source, ring_target, int(item["flow_type"]), flow_rate_for(int(item["flow_type"]))))
 
 func submit(cmd: Command) -> void:
 	world.submit(cmd)
@@ -167,7 +189,7 @@ func _draw() -> void:
 	if world == null or drag_from < 0:
 		return
 	var n: NodeState = world.nodes[drag_from]
-	var target: int = Picking.hit_node(world, mouse_world, NODE_HIT_RADIUS)
+	var target: int = Picking.hit_node(world, mouse_world, _hit_radius())
 	var col: Color = Palette.of_owner(local_player)
 	var end: Vector2 = mouse_world
 	if target >= 0 and target != drag_from:

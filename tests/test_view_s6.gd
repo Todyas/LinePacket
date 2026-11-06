@@ -45,11 +45,11 @@ func test_hidden_payload_key_and_hud_name() -> void:
 	ic.world = TestMaps.siege()
 	ic.camera = CameraCtl.new()
 	var ev := InputEventKey.new()
-	ev.keycode = KEY_H
+	ev.keycode = KEY_R
 	ev.pressed = true
 	ic._on_key(ev)
 	check_eq(ic.flow_type, Defs.PacketType.PAYLOAD_HIDDEN)
-	check_eq(Hud.flow_type_name(Defs.PacketType.PAYLOAD_HIDDEN), "СКРЫТЫЙ [H]")
+	check_eq(Hud.flow_type_name(Defs.PacketType.PAYLOAD_HIDDEN), "СКРЫТЫЙ [R]")
 	ic.camera.free()
 	ic.free()
 

@@ -96,11 +96,11 @@ func test_bot_yields_contested_neutral_instead_of_deadlocking() -> void:
 	# Оба бьют INIT в один нейтрал с равной скоростью: шкалы гасят друг друга. Бот должен уступить.
 	var w: World = TestMaps.build({
 		"name": "dispute", "players": 2,
-		"nodes": [TestMaps.node(0, "core", 0, 0, 0), TestMaps.node(1, "machine", 300, 0), TestMaps.node(2, "core", 600, 0, 1)],
-		"links": [TestMaps.link(0, 1), TestMaps.link(1, 2)],
+		"nodes": [TestMaps.node(0, "core", 0, 0, 0), TestMaps.node(1, "machine", 300, 0), TestMaps.node(2, "machine", 600, 0), TestMaps.node(3, "core", 900, 0, 1)],
+		"links": [TestMaps.link(0, 1), TestMaps.link(1, 2), TestMaps.link(2, 3)],
 	})
 	var bot := Bot.new(BotView.new(w, 0), 1)
-	w.submit(Command.start_flow(1, 0, 2, 1, Defs.PacketType.INIT, 12))
+	w.submit(Command.start_flow(1, 0, 3, 1, Defs.PacketType.INIT, 12))
 	for i in 20 * 25:
 		bot.act()
 		w.step()

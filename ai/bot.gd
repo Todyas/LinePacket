@@ -12,6 +12,7 @@ var _last_event_tick: int = -1
 var _threat: Dictionary = {}          # узел -> тик последней атаки по логу IDS
 var _last_scan: int = -100000
 var _dist_to_enemy_core: PackedInt32Array = PackedInt32Array()
+var _dist_to_my_core: PackedInt32Array = PackedInt32Array()
 var _enemy_core: int = -1
 var _started_attack: bool = false
 var _flow_since: Dictionary = {}      # id потока -> тик, когда бот впервые его увидел
@@ -27,7 +28,9 @@ func _init(view: BotView, seed_value: int, profile: Dictionary = Defs.BOT_PROFIL
 		if c != view.my_core():
 			_enemy_core = c
 	_dist_to_enemy_core.resize(view.node_count())
+	_dist_to_my_core.resize(view.node_count())
 	for n in view.node_count():
+		_dist_to_my_core[n] = view.hops(n, view.my_core())
 		_dist_to_enemy_core[n] = view.hops(n, _enemy_core) if _enemy_core >= 0 else 0
 
 ## Вызывается каждый тик; думает раз в think_ticks, со сдвигом по номеру игрока.
@@ -266,6 +269,9 @@ func _expand(mine: Array[int]) -> void:
 		if v.owner_of(n) != Defs.NEUTRAL or not Defs.INIT_NEEDED.has(v.node_type(n)) or _has_flow_to(Defs.PacketType.INIT, n):
 			continue
 		if _skip_until.has(n) and v.tick() < int(_skip_until[n]):
+			continue
+		# Нейтралов на чужой половине карты не трогаем: бот тянется к врагу, но не лезет ему под нос.
+		if _dist_to_my_core[n] + int(prof["expand_enemy_gap"]) > _dist_to_enemy_core[n]:
 			continue
 		var src: int = _nearest_mine(mine, n)
 		if src < 0 or v.hops(src, n) > int(prof["expand_hops"]):

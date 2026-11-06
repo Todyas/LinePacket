@@ -68,7 +68,7 @@ func show_text(txt: String, pos: Vector2) -> void:
 static func text_at(w: World, viewer: int, player: int, screen_pos: Vector2, world_pos: Vector2, zoom: float,
 		flow_type: int, selected_node: int) -> String:
 	if screen_pos.y < HUD_HEIGHT:
-		return "Тип потока для перетаскивания. Сменить: F, I, P, H, S.\n" + Hints.packet_type(flow_type)
+		return "Тип потока для перетаскивания. Сменить: Q W E R T.\n" + Hints.packet_type(flow_type)
 	if screen_pos.y >= AGENT_TOP:
 		var i: int = int((screen_pos.x - 14.0) / 520.0)
 		if i < 0 or i >= Defs.AGENTS_PER_PLAYER:

@@ -6,6 +6,7 @@ var label: Label
 var world: World
 var player: int = 0
 var input_ctl: InputCtl
+var speed_percent: int = 100
 
 func _ready() -> void:
 	layer = 5
@@ -24,23 +25,26 @@ func _process(_delta: float) -> void:
 	if world == null:
 		return
 	var t: int = input_ctl.flow_type if input_ctl != null else Defs.PacketType.FLOOD
-	label.text = text_for(world, player, t)
+	label.text = text_for(world, player, t, speed_percent)
 	label.add_theme_color_override("font_color", Palette.of_owner(player))
 
 static func flow_type_name(t: int) -> String:
 	match t:
 		Defs.PacketType.FLOOD:
-			return "FLOOD [F]"
+			return "FLOOD [W]"
 		Defs.PacketType.INIT:
-			return "INIT [I]"
+			return "INIT [Q]"
 		Defs.PacketType.PAYLOAD:
-			return "PAYLOAD [P]"
+			return "PAYLOAD [E]"
 		Defs.PacketType.PAYLOAD_HIDDEN:
-			return "СКРЫТЫЙ [H]"
+			return "СКРЫТЫЙ [R]"
 		Defs.PacketType.SCAN:
-			return "SCAN [S]"
+			return "SCAN [T]"
 	return "?"
 
-static func text_for(w: World, player: int, flow_type: int) -> String:
+static func text_for(w: World, player: int, flow_type: int, speed: int = -1) -> String:
 	var p: PlayerState = w.players[player]
-	return "Игрок %d    Байты: %d    Доход: +%d/с    Поток: %s" % [player + 1, p.bank, p.income_per_s(), flow_type_name(flow_type)]
+	var txt: String = "Игрок %d    Байты: %d    Доход: +%d/с    Поток: %s" % [player + 1, p.bank, p.income_per_s(), flow_type_name(flow_type)]
+	if speed > 0:
+		txt += "    Скорость: ×%s [-/+]" % ("%.2f" % (float(speed) / 100.0)).rstrip("0").rstrip(".")
+	return txt

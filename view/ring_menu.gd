@@ -7,8 +7,40 @@ signal chosen(item: Dictionary)
 var _buttons: Array[Button] = []
 var is_open: bool = false
 
+## С какого узла пойдут потоки из меню: выбранный свой узел, а если выбора нет, то ближайший к цели свой (по линкам).
+## Так меню не зависит от того, успел ли игрок кликнуть по узлу левой кнопкой.
+static func source_for(w: World, player: int, selected_node: int, target: int) -> int:
+	if target < 0:
+		return selected_node
+	if selected_node >= 0 and selected_node != target and w.nodes[selected_node].owner == player:
+		return selected_node
+	var best: int = -1
+	var best_hops: int = 1000000
+	for n in w.nodes:
+		if n.owner != player or n.id == target:
+			continue
+		var h: int = Knowledge.hops(w, n.id, target)
+		if h >= 0 and h < best_hops:
+			best_hops = h
+			best = n.id
+	return best
+
 ## Пункты меню: [{label, kind: "task"|"flow", task: вид, arg, flow_type}]. Чистая функция — тестируется без сцены.
 static func items_for(w: World, player: int, selected_node: int, target: int) -> Array[Dictionary]:
+	var items: Array[Dictionary] = _collect(w, player, selected_node, target)
+	if items.is_empty() and target >= 0:
+		items.append(_info_item(w, player, target))
+	return items
+
+static func _info_item(w: World, player: int, target: int) -> Dictionary:
+	var t: NodeState = w.nodes[target]
+	if t.type == Defs.NodeType.SWITCH:
+		return {"label": "Свич: действий нет", "kind": "info", "hint": "Свич ничей, только пересылает пакеты."}
+	if Knowledge.owner_of(w, player, target) == Knowledge.UNKNOWN_OWNER:
+		return {"label": "Нет данных: нужен скан", "kind": "info", "hint": "Узел вне видимости. Скан (T) достаёт на %d хопа от вашего узла." % Defs.SCAN_MAX_HOPS}
+	return {"label": "Действий нет", "kind": "info", "hint": "Для этого узла сейчас нечего делать."}
+
+static func _collect(w: World, player: int, selected_node: int, target: int) -> Array[Dictionary]:
 	var items: Array[Dictionary] = []
 	if target < 0:
 		return items
@@ -76,7 +108,10 @@ func open(screen_pos: Vector2, items: Array[Dictionary]) -> void:
 		b.text = items[i]["label"]
 		b.size = Vector2(210, 32)
 		b.tooltip_text = Hints.ring_item(items[i])
-		b.position = screen_pos + Vector2(cos(ang) * rx, sin(ang) * ry) - b.size * 0.5
+		var pos: Vector2 = screen_pos + Vector2(cos(ang) * rx, sin(ang) * ry) - b.size * 0.5
+		# Меню целиком остаётся на экране, даже если открыто у края.
+		b.position = Vector2(clampf(pos.x, 4.0, 1600.0 - b.size.x - 4.0), clampf(pos.y, 44.0, 900.0 - b.size.y - 4.0))
+		b.disabled = items[i]["kind"] == "info"
 		var item: Dictionary = items[i]
 		b.pressed.connect(func() -> void:
 			chosen.emit(item)

@@ -296,6 +296,10 @@ const SNIFFER_STEAL_PERCENT: int = 25
 const ACTIVATE_DISABLE_SOFT_TICKS: int = 400
 enum ActivateMode { TAKEOVER, DISABLE_SOFT }
 
+## --- Скорость игры (вид, не sim): доля реального времени, с которой идут тики ---
+const GAME_SPEEDS_PERCENT: Array = [25, 50, 100, 200]
+const GAME_SPEED_DEFAULT_INDEX: int = 1
+
 ## --- Бот (S7) ---
 
 ## Характер бота: числа поведения. Один уровень сложности.
@@ -307,6 +311,7 @@ const BOT_PROFILE: Dictionary = {
 	"max_init_flows": 2,        # одновременных захватов нейтралов
 	"base_nodes": 4,            # сколько узлов держит без шлюзов
 	"nodes_per_gateway": 4,     # и сколько прибавляет на каждый шлюз
+	"expand_enemy_gap": 1,      # нейтрал берётся, только если он ближе к своему ядру, чем к вражескому, на столько хопов
 	"expand_hops": 2,           # насколько далеко от своих узлов тянется захват
 	"toward_enemy": 6,          # тяга расширения к чужому ядру (за хоп до него)
 	"scan_interval_s": 15,      # пауза между сканами

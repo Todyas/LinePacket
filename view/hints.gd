@@ -63,6 +63,8 @@ static func task(kind: int, arg: int = 0) -> String:
 ## Подсказка к пункту кольцевого меню.
 static func ring_item(item: Dictionary) -> String:
 	match String(item.get("kind", "")):
+		"info":
+			return String(item.get("hint", ""))
 		"task":
 			return task(int(item["task"]), int(item.get("arg", 0)))
 		"flow":
@@ -79,7 +81,7 @@ static func node(w: World, viewer: int, node_id: int) -> String:
 	var lines: Array[String] = []
 	var lvl: int = Knowledge.level(w, viewer, node_id) if viewer >= 0 else Knowledge.Level.OBSERVED
 	if lvl == Knowledge.Level.SILHOUETTE:
-		return "%s: %s\nНеизвестно. Скан (клавиша S) покажет." % [Names.node_label(n), Names.node_type(n.type)]
+		return "%s: %s\nНеизвестно. Скан (клавиша T) покажет." % [Names.node_label(n), Names.node_type(n.type)]
 	var owner_id: int = Knowledge.owner_of(w, viewer, node_id) if viewer >= 0 else n.owner
 	lines.append("%s: %s, %s" % [Names.node_label(n), Names.node_type(n.type), Names.owner_name(owner_id)])
 	match n.type:

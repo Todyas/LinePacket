@@ -36,7 +36,7 @@ static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
 	if viewer >= 0:
 		var lvl: int = Knowledge.level(w, viewer, node_id)
 		if lvl == Knowledge.Level.SILHOUETTE:
-			return "%s — %s\nДанных нет: узел за пределами видимости.\nСкан (клавиша S, ПКМ) покажет его состояние." % [Names.node_label(w.nodes[node_id]), Names.node_type(w.nodes[node_id].type)]
+			return "%s — %s\nДанных нет: узел за пределами видимости.\nСкан (клавиша T, ПКМ) покажет его состояние." % [Names.node_label(w.nodes[node_id]), Names.node_type(w.nodes[node_id].type)]
 		if lvl == Knowledge.Level.SNAPSHOT:
 			return _snapshot_text(w, node_id, viewer)
 	var n: NodeState = w.nodes[node_id]

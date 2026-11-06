@@ -30,6 +30,7 @@ func _process(_delta: float) -> bool:
 			print("FLOW FAIL: сцена матча не загрузилась")
 			quit(1)
 			return true
+		_main.set_speed_index(2)
 		_stage = 2
 	elif _stage == 2:
 		for i in 400:

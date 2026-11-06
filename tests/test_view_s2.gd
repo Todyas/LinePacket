@@ -32,12 +32,12 @@ func test_init_mode_key_enabled() -> void:
 	ic.world = TestMaps.pair(200)
 	ic.camera = CameraCtl.new()
 	var ev := InputEventKey.new()
-	ev.keycode = KEY_I
+	ev.keycode = KEY_Q
 	ev.pressed = true
 	ic._on_key(ev)
 	check_eq(ic.flow_type, Defs.PacketType.INIT)
 	var ev2 := InputEventKey.new()
-	ev2.keycode = KEY_S
+	ev2.keycode = KEY_T
 	ev2.pressed = true
 	ic._on_key(ev2)
 	check_eq(ic.flow_type, Defs.PacketType.SCAN)

@@ -22,6 +22,7 @@ var tip: HoverTip
 ## Бот ведёт сторону, противоположную человеку. F2 (debug) отключает его.
 var bot: Bot
 var paused: bool = false
+var speed_percent: int = Defs.GAME_SPEEDS_PERCENT[GameConfig.speed_index]
 ## Туман войны; в debug-сборке клавиша F4 включает всеведущий взгляд для отладки.
 var fog_enabled: bool = true
 var local_player: int = GameConfig.player_side
@@ -99,9 +100,16 @@ func _ready() -> void:
 	add_child(pause_screen)
 	pause_screen.resume_requested.connect(set_paused.bind(false))
 	pause_screen.menu_requested.connect(func() -> void: get_tree().change_scene_to_file("res://view/menu.tscn"))
+	input_ctl.speed_step.connect(func(dir: int) -> void: set_speed_index(GameConfig.speed_index + dir))
+	hud.speed_percent = speed_percent
 	input_ctl.pause_toggled.connect(func() -> void:
 		if world.winner < 0:
 			set_paused(not paused))
+
+func set_speed_index(i: int) -> void:
+	GameConfig.speed_index = clampi(i, 0, Defs.GAME_SPEEDS_PERCENT.size() - 1)
+	speed_percent = int(Defs.GAME_SPEEDS_PERCENT[GameConfig.speed_index])
+	hud.speed_percent = speed_percent
 
 func set_paused(value: bool) -> void:
 	paused = value
@@ -123,7 +131,7 @@ func _process(delta: float) -> void:
 		return
 	if paused:
 		return
-	_acc += delta
+	_acc += delta * float(speed_percent) / 100.0
 	var step_s: float = 1.0 / float(Defs.TICK_HZ)
 	var guard: int = 0
 	while _acc >= step_s and guard < 5:

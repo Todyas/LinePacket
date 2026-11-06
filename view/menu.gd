@@ -33,7 +33,7 @@ func _ready() -> void:
 	seed_edit = LineEdit.new()
 	seed_edit.position = Vector2(40, 62)
 	seed_edit.size = Vector2(420, 40)
-	seed_edit.text = str(_fresh_seed())
+	seed_edit.text = str(GameConfig.fresh_seed())
 	seed_edit.add_theme_font_size_override("font_size", 20)
 	panel.add_child(seed_edit)
 	_add_label(panel, "Ваша сторона", Vector2(40, 124))
@@ -74,12 +74,6 @@ func _add_label(parent: Control, text: String, pos: Vector2, font: int = 18) -> 
 	l.position = pos
 	l.add_theme_font_size_override("font_size", font)
 	parent.add_child(l)
-
-## Случайный сид — вид и меню не входят в sim, здесь случайность допустима.
-static func _fresh_seed() -> int:
-	var r := RandomNumberGenerator.new()
-	r.randomize()
-	return r.randi_range(1, 99999)
 
 func apply_config() -> void:
 	GameConfig.seed_value = GameConfig.parse_seed(seed_edit.text, 1)

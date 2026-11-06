@@ -22,15 +22,17 @@ func _ready() -> void:
 	_label.add_theme_font_size_override("font_size", 22)
 	_panel.add_child(_label)
 	_button = Button.new()
-	_button.text = "Сыграть ещё раз"
+	_button.text = "Сыграть ещё раз (новый сид)"
 	_button.position = Vector2(60, 296)
-	_button.size = Vector2(220, 44)
-	_button.pressed.connect(func() -> void: get_tree().reload_current_scene())
+	_button.size = Vector2(240, 44)
+	_button.pressed.connect(func() -> void:
+		GameConfig.seed_value = GameConfig.fresh_seed()   # новый сид: бот каждый раз играет по-другому
+		get_tree().reload_current_scene())
 	_panel.add_child(_button)
 	_menu_button = Button.new()
 	_menu_button.text = "В главное меню"
-	_menu_button.position = Vector2(320, 296)
-	_menu_button.size = Vector2(220, 44)
+	_menu_button.position = Vector2(330, 296)
+	_menu_button.size = Vector2(240, 44)
 	_menu_button.pressed.connect(func() -> void: get_tree().change_scene_to_file("res://view/menu.tscn"))
 	_panel.add_child(_menu_button)
 	_panel.visible = false

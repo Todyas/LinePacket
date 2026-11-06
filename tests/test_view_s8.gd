@@ -89,6 +89,7 @@ func test_space_and_escape_toggle_pause() -> void:
 	var main: Node = load("res://view/main.tscn").instantiate()
 	Engine.get_main_loop().root.add_child(main)
 	await Engine.get_main_loop().process_frame
+	main.set_speed_index(2)
 	check(not main.paused)
 	main.input_ctl._on_key(_key(KEY_SPACE))
 	check(main.paused, "пробел ставит паузу")
@@ -117,7 +118,7 @@ func test_paused_input_is_ignored() -> void:
 	await Engine.get_main_loop().process_frame
 	main.set_paused(true)
 	var ev := InputEventKey.new()
-	ev.keycode = KEY_S
+	ev.keycode = KEY_T
 	ev.pressed = true
 	main.input_ctl._on_key(ev)
 	check(main.input_ctl.flow_type != Defs.PacketType.SCAN, "в паузе режимы не меняются")
@@ -127,6 +128,7 @@ func test_game_has_bot_for_opponent() -> void:
 	var main: Node = load("res://view/main.tscn").instantiate()
 	Engine.get_main_loop().root.add_child(main)
 	await Engine.get_main_loop().process_frame
+	main.set_speed_index(2)
 	check(main.bot != null, "бот создан")
 	for i in 600:
 		main._process(0.05)
@@ -161,3 +163,73 @@ func test_end_screen_shows_time_captures_and_earned() -> void:
 	check(t.contains("2:05"), t)
 	check(t.contains("захватов 3"), t)
 	check(t.contains("заработано 77"), t)
+
+func test_speed_keys_scale_tick_rate() -> void:
+	var main: Node = load("res://view/main.tscn").instantiate()
+	Engine.get_main_loop().root.add_child(main)
+	await Engine.get_main_loop().process_frame
+	main.set_speed_index(2)
+	var t0: int = main.world.tick
+	for i in 20:
+		main._process(0.05)
+	var full: int = main.world.tick - t0
+	main.input_ctl._on_key(_key(KEY_MINUS))
+	check_eq(main.speed_percent, 50, "минус замедляет")
+	t0 = main.world.tick
+	for i in 20:
+		main._process(0.05)
+	var half: int = main.world.tick - t0
+	check(half * 2 <= full + 1 and half * 2 >= full - 1, "вдвое медленнее: %d против %d" % [half, full])
+	main.input_ctl._on_key(_key(KEY_EQUAL))
+	main.input_ctl._on_key(_key(KEY_EQUAL))
+	check_eq(main.speed_percent, 200)
+	main.input_ctl._on_key(_key(KEY_EQUAL))
+	check_eq(main.speed_percent, 200, "быстрее максимума не бывает")
+	check(Hud.text_for(main.world, 0, Defs.PacketType.FLOOD, 50).contains("×0.5"))
+	GameConfig.speed_index = Defs.GAME_SPEED_DEFAULT_INDEX
+	main.queue_free()
+
+func test_ring_menu_does_not_depend_on_selection() -> void:
+	# ПКМ по узлу даёт одно и то же, выбран ли какой-то узел левой кнопкой или нет.
+	var w: World = TestMaps.scout()
+	w.players[0].bank = 100
+	for tgt in w.nodes.size():
+		var a: Array[String] = []
+		var b: Array[String] = []
+		for item in RingMenu.items_for(w, 0, RingMenu.source_for(w, 0, -1, tgt), tgt):
+			a.append(item["label"])
+		for item in RingMenu.items_for(w, 0, RingMenu.source_for(w, 0, 0, tgt), tgt):
+			b.append(item["label"])
+		check(not a.is_empty(), "меню для узла %d не пустое" % tgt)
+		if tgt != 0:
+			check_eq(a, b, "узел %d" % tgt)
+
+func test_ring_menu_has_flow_items_without_selection() -> void:
+	var w: World = TestMaps.scout()
+	var src: int = RingMenu.source_for(w, 0, -1, 1)
+	check_eq(src, 0, "ближайший свой к цели")
+	var labels: Array[String] = []
+	for item in RingMenu.items_for(w, 0, src, 1):
+		labels.append(item["label"])
+	check(labels.any(func(l: String) -> bool: return l.begins_with("Захватить")), str(labels))
+
+func test_ring_menu_explains_empty_cases() -> void:
+	var w: World = TestMaps.scout()
+	var far: Array[Dictionary] = RingMenu.items_for(w, 0, 0, 3)
+	check(not far.is_empty())
+	var sw: World = TestMaps.diamond()
+	for item in RingMenu.items_for(w, 0, 0, 3):
+		check(Hints.ring_item(item) != "")
+	check(sw != null)
+
+func test_bot_does_not_expand_onto_enemy_half() -> void:
+	var w: World = MapLoader.load_file("res://maps/duel.json", 3)["world"]
+	var bot := Bot.new(BotView.new(w, 1), 3)
+	for i in 20 * 120:
+		bot.act()
+		w.step()
+	var mine_core: int = w.players[1].core_node
+	var their_core: int = w.players[0].core_node
+	for n in w.nodes:
+		if n.owner == 1:
+			check(Knowledge.hops(w, n.id, mine_core) < Knowledge.hops(w, n.id, their_core), "%s на чужой половине" % Names.node_label(n))
