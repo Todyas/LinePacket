@@ -5,6 +5,11 @@ extends RefCounted
 static func agent_of(w: World, player: int, idx: int) -> AgentState:
 	return w.agents[player * Defs.AGENTS_PER_PLAYER + idx]
 
+## [тиков, цена в байтах] захвата узла такого типа.
+static func capture_params(node_type: int) -> Array:
+	var cd: Dictionary = Defs.CAPTURE_DEFS.get(node_type, Defs.CAPTURE_DEFS[Defs.NodeType.MACHINE])
+	return [int(cd["time_s"]) * Defs.TICK_HZ, int(cd["cost"])]
+
 ## [тиков, цена в байтах] для задачи.
 static func task_params(kind: int, arg: int, node: NodeState = null) -> Array:
 	if kind == Defs.TaskKind.CLEAN_VIRUS and node != null:
@@ -14,6 +19,8 @@ static func task_params(kind: int, arg: int, node: NodeState = null) -> Array:
 		var base: Dictionary = Defs.TASK_DEFS[kind]
 		var extra: int = Defs.CLEAN_EXTRA_S * Defs.TICK_HZ * worst / Defs.INFECT_MAX
 		return [int(base["time_s"]) * Defs.TICK_HZ + extra, int(base["cost"])]
+	if kind == Defs.TaskKind.CAPTURE:
+		return capture_params(node.type if node != null else Defs.NodeType.MACHINE)
 	if kind == Defs.TaskKind.INSTALL_SOFT:
 		var d: Dictionary = Defs.SOFT_DEFS[arg]
 		return [int(d["time_s"]) * Defs.TICK_HZ, int(d["cost"])]
@@ -22,7 +29,7 @@ static func task_params(kind: int, arg: int, node: NodeState = null) -> Array:
 
 ## Задачи, которые выполняются на чужих машинах.
 const ENEMY_KINDS: Array = [
-	Defs.TaskKind.STEAL_KEY, Defs.TaskKind.DRAIN_BUFFER, Defs.TaskKind.ENTRENCH, Defs.TaskKind.BACKDOOR,
+	Defs.TaskKind.STEAL_KEY, Defs.TaskKind.DRAIN_BUFFER, Defs.TaskKind.BACKDOOR,
 ]
 
 ## Проверка при постановке в очередь. Доступ к чужой машине проверяется, когда агент до неё доедет.
@@ -37,12 +44,12 @@ static func validate_task(w: World, player: int, kind: int, node: int, arg: int)
 	if kind == Defs.TaskKind.INSTALL_SOFT and not Defs.PLAYER_SOFT.has(arg):
 		return false
 	if n.owner == player:
-		return not ENEMY_KINDS.has(kind) or kind == Defs.TaskKind.ENTRENCH
-	# Чужая машина: можно ехать (MOVE) и делать «внутренние» задачи врага.
-	return kind == Defs.TaskKind.MOVE or ENEMY_KINDS.has(kind)
+		return not ENEMY_KINDS.has(kind) and kind != Defs.TaskKind.CAPTURE
+	# Чужая машина: можно ехать (MOVE), делать «внутренние» задачи врага и захватывать.
+	return kind == Defs.TaskKind.MOVE or kind == Defs.TaskKind.CAPTURE or ENEMY_KINDS.has(kind)
 
 ## Применима ли задача к узлу прямо сейчас (проверяется, когда агент на месте).
-static func applicable(a: AgentState, n: NodeState, kind: int, arg: int) -> bool:
+static func applicable(w: World, a: AgentState, n: NodeState, kind: int, arg: int) -> bool:
 	if n.owner < 0:
 		return false
 	var mine: bool = n.owner == a.owner
@@ -56,12 +63,36 @@ static func applicable(a: AgentState, n: NodeState, kind: int, arg: int) -> bool
 		Defs.TaskKind.STEAL_KEY, Defs.TaskKind.DRAIN_BUFFER, Defs.TaskKind.BACKDOOR:
 			return not mine
 		Defs.TaskKind.ENTRENCH:
-			return n.prev_owner >= 0
+			return mine and n.prev_owner >= 0
+		Defs.TaskKind.CAPTURE:
+			return not mine
+		Defs.TaskKind.EVICT:
+			return mine and not foreign_agents_on(w, n).is_empty()
 	return false
+
+## Агенты других игроков, стоящие на узле (в пути агент не стоит).
+static func foreign_agents_on(w: World, n: NodeState) -> Array[AgentState]:
+	var out: Array[AgentState] = []
+	for b in w.agents:
+		if b.owner != n.owner and b.node == n.id:
+			out.append(b)
+	return out
+
+## Стоит ли на узле агент его владельца: пока он там, захват не идёт.
+static func defender_present(w: World, n: NodeState) -> bool:
+	for b in w.agents:
+		if b.owner == n.owner and b.node == n.id:
+			return true
+	return false
+
+## Может ли агент прямо сейчас захватывать узел: доступ есть, агента-защитника нет.
+static func capture_possible(w: World, a: AgentState, n: NodeState) -> bool:
+	return n.owner >= 0 and n.owner != a.owner and can_enter(n, a.owner) and not defender_present(w, n)
 
 ## Есть ли у игрока вход на узел: свой, по доступу или узел «лежит».
 static func can_enter(n: NodeState, player: int) -> bool:
-	return n.owner == player or n.down or (n.access_mask & (1 << player)) != 0 or n.backdoor[player] == 1
+	return n.owner == player or n.down or (n.access_mask & (1 << player)) != 0 or n.backdoor[player] == 1 \
+		or n.door[player] > 0 or n.infected_by(player)
 
 static func step(w: World) -> void:
 	for a in w.agents:
@@ -78,6 +109,8 @@ static func step(w: World) -> void:
 						a.mode = AgentState.Mode.IDLE
 						_advance(w, a)
 					continue
+				if int(a.queue[0][0]) == Defs.TaskKind.CAPTURE and not capture_possible(w, a, w.nodes[a.queue[0][1]]):
+					continue    # доступ пропал или на машине агент защитника: задача на паузе, агент стоит
 				a.work_left -= 1
 				if a.work_left <= 0:
 					_complete(w, a)
@@ -110,17 +143,23 @@ static func _advance(w: World, a: AgentState) -> void:
 			a.mode = AgentState.Mode.TRAVEL
 			Network.inject(w, from_node, target, Defs.PacketType.AGENT, a.owner, a.id)
 			return
-		if not applicable(a, tn, kind, arg):
+		if not applicable(w, a, tn, kind, arg):
 			a.queue.pop_front()
 			continue
 		if kind == Defs.TaskKind.MOVE:
 			a.queue.pop_front()
 			continue
+		if kind == Defs.TaskKind.CAPTURE and not capture_possible(w, a, tn):
+			return                 # нет доступа или стоит агент защитника: ждём на месте
 		var params: Array = task_params(kind, arg, tn)
 		var pl: PlayerState = w.players[a.owner]
 		if pl.bank < int(params[1]):
 			return                 # без байтов задача не начинается
 		pl.bank -= int(params[1])
+		if kind == Defs.TaskKind.CAPTURE:
+			# Владелец узнаёт, что машину берут; с IDS ещё и чей агент.
+			var src: int = a.owner if Stealth.ids_covers(w, tn.owner, tn) else -1
+			Knowledge.log_event(w, tn.owner, Knowledge.EventKind.AGENT_CAPTURING, tn.id, -1, src)
 		a.mode = AgentState.Mode.WORK
 		a.work_total = int(params[0])
 		a.work_left = int(params[0])
@@ -142,7 +181,7 @@ static func _complete(w: World, a: AgentState) -> void:
 	var head: Array = a.queue[0]
 	var n: NodeState = w.nodes[head[1]]
 	var kind: int = head[0]
-	if not applicable(a, n, kind, int(head[2])) and kind != Defs.TaskKind.INSTALL_SOFT:
+	if not applicable(w, a, n, kind, int(head[2])) and kind != Defs.TaskKind.INSTALL_SOFT:
 		return
 	match kind:
 		Defs.TaskKind.CHANGE_PASSWORD:
@@ -163,11 +202,14 @@ static func _complete(w: World, a: AgentState) -> void:
 			n.backdoor[a.owner] = 1
 		Defs.TaskKind.STEAL_KEY:
 			n.access_mask |= 1 << a.owner
-		Defs.TaskKind.ENTRENCH:
-			# Закрепление: чужие доступы и ПО вылетают. Если прошлый владелец успел раньше —
-			# машина возвращается к нему.
-			if n.owner != a.owner:
+		Defs.TaskKind.CAPTURE:
+			if capture_possible(w, a, n):
 				Economy.takeover(w, n, a.owner)
+		Defs.TaskKind.EVICT:
+			for b in foreign_agents_on(w, n):
+				send_home(w, b)
+		Defs.TaskKind.ENTRENCH:
+			# Закрепление: чужие доступы и ПО вылетают.
 			n.access_mask = 1 << a.owner
 			n.access_mode = Defs.AccessMode.PASSWORD_STRONG
 			n.clear_soft()

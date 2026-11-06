@@ -5,7 +5,7 @@ extends RefCounted
 ## Уровни: силуэт (стартовая топология), снимок (дозор или давнее наблюдение), наблюдение (свои узлы и соседние).
 
 enum Level { SILHOUETTE, SNAPSHOT, OBSERVED }
-enum EventKind { IDS_ATTACK, NODE_CAPTURED, NODE_LOST, NODE_DOWN, HIDDEN_FOUND, AGENT_SEEN }
+enum EventKind { IDS_ATTACK, NODE_CAPTURED, NODE_LOST, NODE_DOWN, HIDDEN_FOUND, AGENT_SEEN, AGENT_CAPTURING }
 
 const UNKNOWN_OWNER: int = -2
 const EVENT_LIMIT: int = 60
@@ -45,7 +45,7 @@ static func update(w: World) -> void:
 		k.observed.fill(0)
 		for n in w.nodes:
 			# Узел игрока и заражённый его тайным вирусом: видно их и соседей.
-			if n.owner != p and n.virus[p] != 1:
+			if n.owner != p and n.virus[p] != 1 and not n.infected_by(p):
 				continue
 			k.observed[n.id] = 1
 			for lid in n.links:

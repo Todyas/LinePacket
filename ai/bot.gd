@@ -10,6 +10,7 @@ var rng: Rng
 var prof: Dictionary
 var _last_event_tick: int = -1
 var _threat: Dictionary = {}          # узел -> тик последней атаки по логу IDS
+var _alarm: Dictionary = {}           # узел -> тик, когда его начал захватывать чужой агент
 var _dist_to_enemy_core: PackedInt32Array = PackedInt32Array()
 var _dist_to_my_core: PackedInt32Array = PackedInt32Array()
 var _enemy_core: int = -1
@@ -42,7 +43,9 @@ func act() -> void:
 		return
 	_read_events()
 	_release_stale_ops()
+	_defend_with_agents(mine)
 	_activate_viruses(mine)
+	_capture_ops()
 	_retake_and_clean(mine)
 	_fortify(mine)
 	_expand(mine)
@@ -58,6 +61,8 @@ func _read_events() -> void:
 			continue
 		if int(e[1]) == Knowledge.EventKind.IDS_ATTACK:
 			_threat[int(e[2])] = int(e[0])
+		elif int(e[1]) == Knowledge.EventKind.AGENT_CAPTURING:
+			_alarm[int(e[2])] = int(e[0])
 
 func _under_threat(n: int) -> bool:
 	return _threat.has(n) and v.tick() - int(_threat[n]) < int(prof["threat_memory_s"]) * Defs.TICK_HZ
@@ -148,18 +153,23 @@ func _skipped(n: int) -> bool:
 
 # --- Скрытые вирусы ---
 
-func _activate_viruses(mine: Array[int]) -> void:
+## Свой тайный вирус открывает дверь, только если агент сразу поедет захватывать (окно двери — 20 с).
+func _activate_viruses(_mine: Array[int]) -> void:
 	for n in v.node_count():
 		var s: NodeSnap = v.snap(n)
-		if s != null and s.my_virus and v.owner_of(n) == enemy:
-			v.submit(Command.activate(me, v.tick(), n, Defs.ActivateMode.TAKEOVER))
+		if s == null or not s.my_virus or v.owner_of(n) != enemy or _pending_for(n):
+			continue
+		if _give_task(Defs.TaskKind.CAPTURE, n, 0, true):
+			v.submit(Command.activate(me, v.tick(), n, Defs.ActivateMode.OPEN_DOOR))
+			return
 
 # --- Агенты ---
 
 ## Поставить задачу первому свободному агенту, если хватает байтов. true — поставлена.
-func _give_task(kind: int, node: int, arg: int = 0) -> bool:
-	var params: Array = Agents.task_params(kind, arg)
-	if v.bank() < int(params[1]) + int(prof["reserve"]):
+## urgent: если свободных нет, оборвать самого незанятого важным делом агента (но не захват и не защиту).
+func _give_task(kind: int, node: int, arg: int = 0, urgent: bool = false) -> bool:
+	var cost: int = int(Agents.capture_params(v.node_type(node))[1]) if kind == Defs.TaskKind.CAPTURE else int(Agents.task_params(kind, arg)[1])
+	if v.bank() < cost + int(prof["reserve"]):
 		return false
 	var best: int = -1
 	for a in v.my_agents():
@@ -167,6 +177,20 @@ func _give_task(kind: int, node: int, arg: int = 0) -> bool:
 			continue
 		best = int(a["idx"])
 		break
+	if best < 0 and urgent:
+		var fewest: int = 1 << 20
+		for a in v.my_agents():
+			var q: Array = a["queue"]
+			if q.is_empty() or int(a["mode"]) == AgentState.Mode.LOST:
+				continue
+			var head: int = int(q[0][0])
+			if head == Defs.TaskKind.CAPTURE or head == Defs.TaskKind.EVICT:
+				continue
+			if q.size() < fewest:
+				fewest = q.size()
+				best = int(a["idx"])
+		if best >= 0:
+			v.submit(Command.clear_queue(me, v.tick(), best))
 	if best < 0:
 		return false
 	for a in v.my_agents():
@@ -189,18 +213,42 @@ func _retake_and_clean(mine: Array[int]) -> void:
 		var info: Dictionary = v.own(n)
 		if info.is_empty() or _pending_for(n):
 			continue
-		if info["has_found_threat"] or int(info["infect"]) > 20000:
+		if info["has_found_threat"] or int(info["infect"]) > 20000 or int(info["infect"]) >= Defs.INFECT_MAX:
 			if _give_task(Defs.TaskKind.CLEAN_VIRUS, n):
 				return
 		if int(info["prev_owner"]) >= 0:
 			if _give_task(Defs.TaskKind.ENTRENCH, n):
 				return
-	# Машина, потерянная по заражению: старые ключи пускают обратно.
+
+## Операция «агент → захват»: у врага есть узел, куда у нас есть вход (пароль, ключ, бэкдор, заражение, лежит) — агент едет захватывать.
+## Первым — ядро, затем ближайшие к ядру врага. Потерянное по старым ключам берётся этим же путём.
+func _capture_ops() -> void:
+	var best: int = -1
+	var best_score: int = 1 << 20
 	for n in v.node_count():
 		var s: NodeSnap = v.snap(n)
-		if s != null and s.owner == enemy and s.my_access and v.level(n) != Knowledge.Level.SILHOUETTE and v.node_type(n) != Defs.NodeType.SWITCH:
-			if not _pending_for(n) and _give_task(Defs.TaskKind.ENTRENCH, n):
-				return
+		if s == null or s.owner != enemy or not s.my_entry or v.node_type(n) == Defs.NodeType.SWITCH or _pending_for(n):
+			continue
+		if _skipped(n) or v.level(n) == Knowledge.Level.SILHOUETTE:
+			continue
+		var score: int = _dist_to_enemy_core[n]
+		if v.node_type(n) == Defs.NodeType.CORE:
+			score -= 100
+		if score < best_score:
+			best_score = score
+			best = n
+	if best >= 0 and _give_task(Defs.TaskKind.CAPTURE, best, 0, true):
+		_skip_until[best] = v.tick() + int(prof["capture_retry_s"]) * Defs.TICK_HZ
+
+## Чужой агент берёт нашу машину: ближайший свободный агент едет и выгоняет его.
+func _defend_with_agents(mine: Array[int]) -> void:
+	for n in mine:
+		if not _alarm.has(n) or v.tick() - int(_alarm[n]) > int(prof["alarm_memory_s"]) * Defs.TICK_HZ:
+			continue
+		if _pending_for(n):
+			continue
+		if _give_task(Defs.TaskKind.EVICT, n, 0, true):
+			return
 
 # --- Укрепление ---
 
@@ -376,6 +424,8 @@ func _attack(mine: Array[int]) -> void:
 		if near.is_empty() and not busy:
 			continue
 		var s: NodeSnap = v.snap(n)
+		if s == null or (s.my_entry and not busy):
+			continue    # вход уже есть: дальше работает агент
 		var h: int = v.hops(near[0], n) if not near.is_empty() else 1
 		if h > int(prof["attack_hops"]):
 			continue

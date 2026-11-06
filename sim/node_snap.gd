@@ -15,6 +15,8 @@ var my_access: bool = false      # был ли у игрока доступ (п�
 ## Скрытое: только то, что игрок вправе знать (свой вирус и бэкдор, найденное у себя, найденный сниффер).
 var my_virus: bool = false
 var my_backdoor: bool = false
+var my_entry: bool = false       # есть ли у игрока вход на узел для агента: доступ, бэкдор, заражение, дверь или узел лежит
+var my_infected: bool = false    # игрок заразил узел на 100%
 var found_virus: bool = false       # на своей машине найден чужой вирус
 var found_backdoor: bool = false
 var sniffer_known: bool = false
@@ -38,6 +40,8 @@ static func capture(n: NodeState, player: int, at_tick: int) -> NodeSnap:
 	s.my_access = (n.access_mask & (1 << player)) != 0
 	s.my_virus = n.virus[player] == 1
 	s.my_backdoor = n.backdoor[player] == 1
+	s.my_infected = n.infected_by(player)
+	s.my_entry = n.owner != player and Agents.can_enter(n, player)
 	if n.owner == player:
 		for a in Defs.MAX_PLAYERS:
 			if n.virus[a] == 1 and n.found[NodeState.hidden_slot(Defs.HiddenKind.VIRUS, a)] == 1:
@@ -62,6 +66,8 @@ func hash_into(h: Hasher) -> void:
 	h.add(1 if my_access else 0)
 	h.add(1 if my_virus else 0)
 	h.add(1 if my_backdoor else 0)
+	h.add(1 if my_entry else 0)
+	h.add(1 if my_infected else 0)
 	h.add(1 if found_virus else 0)
 	h.add(1 if found_backdoor else 0)
 	h.add(1 if sniffer_known else 0)

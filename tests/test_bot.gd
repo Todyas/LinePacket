@@ -70,12 +70,14 @@ func test_bot_responds_to_ids_log_with_defence() -> void:
 func test_bot_activates_its_hidden_virus() -> void:
 	var w: World = TestMaps.siege()
 	w.nodes[2].virus[1] = 1
+	w.players[1].bank = 200
+	TestMaps.clear_defenders(w, 0)
 	w.step()
 	var bot := Bot.new(BotView.new(w, 1), 1)
-	for i in 20:
+	for i in 400:
 		bot.act()
 		w.step()
-	check_eq(w.nodes[2].owner, 1, "готовый вирус бот активирует")
+	check_eq(w.nodes[2].owner, 1, "готовый вирус бот открывает дверью и захватывает агентом")
 
 func test_bot_match_is_deterministic() -> void:
 	var a: World = _duel(5)
@@ -118,3 +120,35 @@ func _capture_roles_on(w: World, player: int, target: int) -> int:
 		if n.owner == player and n.role == Defs.Role.CAPTURE and n.role_target == target:
 			c += 1
 	return c
+
+func test_bot_takes_enemy_core_with_agent() -> void:
+	var w: World = TestMaps.rush()
+	w.players[1].bank = 500
+	TestMaps.infect_fully(w, 0, 1)
+	TestMaps.clear_defenders(w, 0)
+	w.step()
+	var bot := Bot.new(BotView.new(w, 1), 1)
+	for i in 20 * 90:
+		bot.act()
+		w.step()
+		if w.winner >= 0:
+			break
+	check_eq(w.winner, 1, "заражённое ядро без защитников бот берёт агентом")
+
+func test_bot_defends_with_agent_when_machine_is_being_captured() -> void:
+	var w: World = TestMaps.siege()
+	w.players[0].bank = 300
+	w.players[1].bank = 300
+	w.nodes[1].install_soft(Defs.SoftType.IDS)
+	TestMaps.infect_fully(w, 2, 1)
+	TestMaps.clear_defenders(w, 1)
+	Agents.agent_of(w, 1, 0).mode = AgentState.Mode.IDLE
+	Agents.agent_of(w, 1, 0).node = 3
+	Agents.agent_of(w, 1, 0).lost_timer = 0
+	w.step()
+	w.submit(Command.queue_task(1, w.tick, 0, Defs.TaskKind.CAPTURE, 2))
+	var bot := Bot.new(BotView.new(w, 0), 1)
+	for i in 20 * 40:
+		bot.act()
+		w.step()
+	check_eq(w.nodes[2].owner, 0, "бот выгнал агента и удержал машину")

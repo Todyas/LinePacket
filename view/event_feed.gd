@@ -61,6 +61,8 @@ static func color_for(kind: int) -> Color:
 			return Color(1.0, 0.4, 0.35)
 		Knowledge.EventKind.AGENT_SEEN:
 			return Color(1.0, 0.75, 0.3)
+		Knowledge.EventKind.AGENT_CAPTURING:
+			return Color(1.0, 0.4, 0.35)
 	return Color(0.6, 0.95, 0.7)
 
 static func attack_name(ptype: int) -> String:
@@ -96,4 +98,8 @@ static func line_for(w: World, e: Array) -> String:
 			return "%s [%s] найден %s на %s" % [stamp, src, Defs.HIDDEN_NAMES[extra / 2], node_lbl]
 		Knowledge.EventKind.AGENT_SEEN:
 			return "%s [IDS] чужой агент на %s" % [stamp, node_lbl]
+		Knowledge.EventKind.AGENT_CAPTURING:
+			if int(e[4]) >= 0:
+				return "%s [IDS] агент игрока %d захватывает %s" % [stamp, int(e[4]) + 1, node_lbl]
+			return "%s машину %s захватывает агент!" % [stamp, node_lbl]
 	return stamp

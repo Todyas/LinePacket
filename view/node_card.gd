@@ -75,7 +75,9 @@ static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
 		for p in Defs.MAX_PLAYERS:
 			if p == n.owner or (viewer >= 0 and p != viewer and n.owner != viewer):
 				continue
-			if n.infect[p] > 0:
+			if n.infect[p] >= Defs.INFECT_MAX:
+				lines.append("ЗАРАЖЕНА (%s): ПО выключено, у заразившего доступ" % Names.owner_name(p))
+			elif n.infect[p] > 0:
 				lines.append("Заражение (%s): %d%%" % [Names.owner_name(p), n.infect[p] * 100 / Defs.INFECT_MAX])
 			if n.brute[p] > 0:
 				lines.append("Подбор пароля (%s): %d%%" % [Names.owner_name(p), n.brute[p] * 100 / Defs.BRUTE_MAX])
@@ -89,6 +91,11 @@ static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
 				here.append("%d(И%d)" % [a.id + 1, a.owner + 1])
 		if not here.is_empty():
 			lines.append("Агенты здесь: %s" % ", ".join(here))
+		if n.owner == viewer or viewer < 0:
+			for a in w.agents:
+				if a.node == node_id and a.owner != n.owner and a.mode == AgentState.Mode.WORK and int(a.queue[0][0]) == Defs.TaskKind.CAPTURE:
+					var paused: bool = not Agents.capture_possible(w, a, n)
+					lines.append("ЗАХВАТ АГЕНТОМ: %d%%%s" % [a.progress_permille() / 10, " (стоит)" if paused else ""])
 	else:
 		if Defs.INIT_NEEDED.has(n.type):
 			lines.append("Захват: INIT ×%d" % int(Defs.INIT_NEEDED[n.type]))

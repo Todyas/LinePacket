@@ -131,8 +131,8 @@ static func upkeep(w: World) -> void:
 			inf_dec += Defs.ANTIVIRUS_DECAY_PER_S / Defs.TICK_HZ
 		var br_dec: int = Defs.BRUTE_DECAY_PER_S / Defs.TICK_HZ
 		for p in Defs.MAX_PLAYERS:
-			if n.infect[p] > 0:
-				n.infect[p] = maxi(0, n.infect[p] - inf_dec)
+			if n.infect[p] > 0 and n.infect[p] < Defs.INFECT_MAX:
+				n.infect[p] = maxi(0, n.infect[p] - inf_dec)    # на 100% заражение держится, пока его не вычистят
 			if n.virus_meter[p] > 0:
 				n.virus_meter[p] = maxi(0, n.virus_meter[p] - inf_dec)
 			if n.brute[p] > 0:
@@ -229,12 +229,9 @@ static func on_payload(w: World, node: NodeState, attacker: int) -> void:
 	var gain: int = Defs.INFECT_GAIN
 	if node.soft_active(Defs.SoftType.ANTIVIRUS):
 		gain = gain * Defs.ANTIVIRUS_GAIN_PERCENT / 100
-	node.infect[attacker] = mini(Defs.INFECT_MAX, node.infect[attacker] + gain)
-	if node.infect[attacker] >= Defs.INFECT_MAX:
-		takeover(w, node, attacker)
+	node.infect[attacker] = mini(Defs.INFECT_MAX, node.infect[attacker] + gain)    # на 100% владельца не меняет: это доступ
 
-## Машина меняет владельца (заражение 100% или «закрепиться» агентом прошлого владельца).
-## Прошлый владелец сохраняет доступ по старым ключам, его агенты вылетают.
+## Машина меняет владельца: задача агента «Захватить». Прошлый владелец сохраняет доступ по старым ключам, его агенты вылетают.
 static func takeover(w: World, node: NodeState, attacker: int) -> void:
 	var old: int = node.owner
 	node.prev_owner = old

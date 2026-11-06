@@ -15,8 +15,7 @@ func test_ring_menu_offers_hidden_virus_backdoor_and_activation() -> void:
 	w.nodes[2].virus[1] = 1
 	w.step()
 	var t2: String = _labels(RingMenu.items_for(w, 1, 3, 2))
-	check(t2.contains("Активировать: перехват"), t2)
-	check(t2.contains("Активировать: отключить ПО"), t2)
+	check(t2.contains("Активировать: открыть дверь"), t2)
 	check(not t2.contains("Тайное заражение"), "второй вирус на ту же машину не предлагается: " + t2)
 
 func test_ring_menu_clean_appears_only_for_found_threat() -> void:
@@ -34,9 +33,10 @@ func test_activate_item_sends_command() -> void:
 	ic.camera = CameraCtl.new()
 	ic.local_player = 1
 	ic.ring_target = 2
-	ic.apply_item({"kind": "activate", "label": "x", "mode": Defs.ActivateMode.TAKEOVER})
+	ic.apply_item({"kind": "activate", "label": "x", "mode": Defs.ActivateMode.OPEN_DOOR})
 	w.step()
-	check_eq(w.nodes[2].owner, 1)
+	check(Agents.can_enter(w.nodes[2], 1), "дверь открыта")
+	check_eq(w.nodes[2].virus[1], 0)
 	ic.camera.free()
 	ic.free()
 

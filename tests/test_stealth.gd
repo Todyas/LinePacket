@@ -19,7 +19,7 @@ func test_hidden_payload_is_pricier_and_slower_than_plain() -> void:
 	TestMaps.engage(plain, 1, 3, 2, Defs.PacketType.PAYLOAD)
 	TestMaps.boost(plain, 3)
 	var t_plain: int = 0
-	while plain.nodes[2].owner == 0 and t_plain < 800:
+	while not plain.nodes[2].infected_by(1) and t_plain < 800:
 		plain.step()
 		t_plain += 1
 	var hid: World = _hidden_world()
@@ -89,34 +89,26 @@ func test_antivirus_also_finds_hidden_virus() -> void:
 	w.run(Defs.HIDDEN_DETECT_S[Defs.HiddenKind.VIRUS] * Defs.TICK_HZ + 40)
 	check(Knowledge.snap(w, 0, 2).found_virus, "антивирус нашёл вирус")
 
-func test_activation_takeover_changes_owner_in_one_tick() -> void:
-	var w: World = _hidden_world()
-	_infect_until_virus(w, 1500)
-	w.run(5)
-	w.submit(Command.activate(1, w.tick, 2, Defs.ActivateMode.TAKEOVER))
-	var tick_before: int = w.tick
-	check_eq(w.nodes[2].owner, 0)
-	w.step()
-	check_eq(w.nodes[2].owner, 1, "за один тик")
-	check_eq(w.tick, tick_before + 1)
-	check_eq(w.nodes[2].virus[1], 0, "вирус израсходован")
-	# Повторно без вируса — отказ.
-	var rej: int = w.rejected_count
-	w.submit(Command.activate(1, w.tick, 2, Defs.ActivateMode.TAKEOVER))
-	w.step()
-	check_eq(w.rejected_count, rej + 1)
-
-func test_activation_disable_soft_is_temporary() -> void:
+func test_open_door_gives_access_and_disables_soft_temporarily() -> void:
 	var w: World = _hidden_world()
 	w.nodes[2].install_soft(Defs.SoftType.FIREWALL)
 	_infect_until_virus(w, 1500)
 	w.step()
-	w.submit(Command.activate(1, w.tick, 2, Defs.ActivateMode.DISABLE_SOFT))
+	check(not Agents.can_enter(w.nodes[2], 1), "без двери и доступа вора не пускают")
+	w.submit(Command.activate(1, w.tick, 2, Defs.ActivateMode.OPEN_DOOR))
 	w.step()
 	check(not w.nodes[2].soft_active(Defs.SoftType.FIREWALL), "ПО выключено")
-	check_eq(w.nodes[2].owner, 0)
-	w.run(Defs.ACTIVATE_DISABLE_SOFT_TICKS + 5)
+	check(Agents.can_enter(w.nodes[2], 1), "дверь открыта: вход есть")
+	check_eq(w.nodes[2].owner, 0, "дверь владельца не меняет")
+	check_eq(w.nodes[2].virus[1], 0, "вирус израсходован")
+	w.run(Defs.DOOR_TICKS + 5)
 	check(w.nodes[2].soft_active(Defs.SoftType.FIREWALL), "через время ПО снова работает")
+	check(not Agents.can_enter(w.nodes[2], 1), "дверь закрылась")
+	# Повторно без вируса — отказ.
+	var rej: int = w.rejected_count
+	w.submit(Command.activate(1, w.tick, 2, Defs.ActivateMode.OPEN_DOOR))
+	w.step()
+	check_eq(w.rejected_count, rej + 1)
 
 func test_virus_skims_part_of_data_and_shows_neighbourhood() -> void:
 	var base: World = TestMaps.siege()

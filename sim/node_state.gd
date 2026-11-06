@@ -45,6 +45,7 @@ var backdoor: PackedInt32Array = PackedInt32Array()       # 1 — у игрок�
 var skim_acc: PackedInt32Array = PackedInt32Array()       # накопитель отвода DATA вирусом
 var det_timer: PackedInt32Array = PackedInt32Array()      # тики наблюдения по [вид * MAX_PLAYERS + кто]
 var found: PackedInt32Array = PackedInt32Array()          # 1 — найдено (видит нашедший), те же индексы
+var door: PackedInt32Array = PackedInt32Array()          # тиков открытой двери по игрокам: у вора доступ
 var soft_off: int = 0                      # тиков осталось, пока ПО выведено из строя активацией вируса
 var sniff_acc: int = 0
 var ids_cool: PackedInt32Array = PackedInt32Array()  # тик последней записи IDS по атакующим
@@ -66,6 +67,7 @@ func _init() -> void:
 	skim_acc.resize(Defs.MAX_PLAYERS)
 	det_timer.resize(Defs.HIDDEN_KIND_COUNT * Defs.MAX_PLAYERS)
 	found.resize(Defs.HIDDEN_KIND_COUNT * Defs.MAX_PLAYERS)
+	door.resize(Defs.MAX_PLAYERS)
 	ids_cool.resize(Defs.MAX_PLAYERS)
 	ids_cool.fill(-1000000)
 
@@ -99,9 +101,20 @@ func soft_load() -> int:
 func has_soft(t: int) -> bool:
 	return soft.has(t)
 
-## ПО работает, только пока узел не лежит.
+## ПО работает, только пока узел не лежит, не заражён и не открыта дверь.
 func soft_active(t: int) -> bool:
-	return not down and soft_off <= 0 and soft.has(t)
+	return not down and soft_off <= 0 and not is_infected() and soft.has(t)
+
+## Заражена ли машина на 100% кем-то из чужих: ПО защитника молчит, у заразившего есть доступ, пока агент не вычистит.
+func is_infected() -> bool:
+	for p in infect.size():
+		if p != owner and infect[p] >= Defs.INFECT_MAX:
+			return true
+	return false
+
+## Игрок заразил эту машину на 100%.
+func infected_by(p: int) -> bool:
+	return p != owner and infect[p] >= Defs.INFECT_MAX
 
 func free_slots() -> int:
 	var used: int = 0
@@ -127,6 +140,7 @@ func clear_soft() -> void:
 func clear_threats() -> void:
 	infect.fill(0)
 	brute.fill(0)
+	door.fill(0)
 	clear_hidden()
 
 ## Тайные вирусы, бэкдоры и всё, что нашли; сниффер — обычное ПО, его убирает clear_soft.
@@ -199,6 +213,7 @@ func hash_into(h: Hasher) -> void:
 	h.add_array(skim_acc)
 	h.add_array(det_timer)
 	h.add_array(found)
+	h.add_array(door)
 	h.add(soft_off)
 	h.add(sniff_acc)
 	h.add(prev_owner)

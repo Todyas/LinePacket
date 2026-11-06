@@ -46,9 +46,10 @@ static func build_siege(seed_value: int) -> World:
 	w.submit(Command.set_role(1, 5, 3, Defs.Role.CAPTURE, 2))
 	w.submit(Command.set_role(1, 100, 4, Defs.Role.INFECT, 2))
 	w.submit(Command.set_role(1, 200, 3, Defs.Role.PRESSURE, 2))
-	w.submit(Command.queue_task(0, 10, 0, Defs.TaskKind.INSTALL_SOFT, 2, Defs.SoftType.ANTIVIRUS))
-	w.submit(Command.queue_task(0, 300, 1, Defs.TaskKind.SET_KEYS, 2))
+	w.submit(Command.queue_task(0, 10, 0, Defs.TaskKind.INSTALL_SOFT, 1, Defs.SoftType.ANTIVIRUS))
+	w.submit(Command.queue_task(0, 300, 1, Defs.TaskKind.SET_KEYS, 1))
 	w.submit(Command.queue_task(1, 400, 0, Defs.TaskKind.STEAL_KEY, 2))
+	w.submit(Command.queue_task(1, 600, 1, Defs.TaskKind.CAPTURE, 2))
 	return w
 
 ## Скрытность: скрытый вирус, IDS у защитника, бэкдор, активация и сниффер на транзите.
@@ -62,5 +63,6 @@ static func build_stealth(seed_value: int) -> World:
 	w.submit(Command.set_role(1, 20, 4, Defs.Role.WATCH))
 	w.submit(Command.queue_task(1, 300, 0, Defs.TaskKind.STEAL_KEY, 2))
 	w.submit(Command.queue_task(1, 320, 1, Defs.TaskKind.BACKDOOR, 2))
-	w.submit(Command.activate(1, 1200, 2, Defs.ActivateMode.DISABLE_SOFT))
+	w.submit(Command.activate(1, 1200, 2, Defs.ActivateMode.OPEN_DOOR))
+	w.submit(Command.queue_task(1, 1201, 2, Defs.TaskKind.CAPTURE, 2))
 	return w

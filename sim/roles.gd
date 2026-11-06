@@ -29,7 +29,7 @@ static func target_ok(w: World, n: NodeState, role: int, target: int) -> bool:
 		Defs.Role.PRESSURE:
 			return t.owner >= 0 and t.owner != me and t.type != Defs.NodeType.SWITCH
 		Defs.Role.INFECT:
-			return t.owner >= 0 and t.owner != me and t.type != Defs.NodeType.SWITCH
+			return t.owner >= 0 and t.owner != me and t.type != Defs.NodeType.SWITCH and not t.infected_by(me)
 		Defs.Role.INFECT_HIDDEN:
 			return t.owner >= 0 and t.owner != me and t.type != Defs.NodeType.SWITCH and t.virus[me] != 1
 	return false

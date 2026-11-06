@@ -26,7 +26,7 @@ static func on_payload_hidden(w: World, node: NodeState, attacker: int) -> void:
 		node.virus_meter[attacker] = 0
 		node.virus[attacker] = 1
 
-## Активация: мгновенный перехват или отключение ПО. Вирус при этом расходуется.
+## Активация вируса «Открыть дверь»: на DOOR_TICKS у вора доступ, ПО машины выключено. Вирус расходуется.
 static func apply_activate(w: World, player: int, args: Array) -> bool:
 	if args.size() != 2 or player < 0 or player >= w.players.size():
 		return false
@@ -37,16 +37,13 @@ static func apply_activate(w: World, player: int, args: Array) -> bool:
 	var n: NodeState = w.nodes[nid]
 	if n.owner < 0 or n.owner == player or n.virus[player] != 1:
 		return false
-	match mode:
-		Defs.ActivateMode.TAKEOVER:
-			Economy.takeover(w, n, player)     # clear_threats внутри снимает и вирус
-		Defs.ActivateMode.DISABLE_SOFT:
-			n.soft_off = Defs.ACTIVATE_DISABLE_SOFT_TICKS
-			n.virus[player] = 0
-			n.det_timer[NodeState.hidden_slot(Defs.HiddenKind.VIRUS, player)] = 0
-			n.found[NodeState.hidden_slot(Defs.HiddenKind.VIRUS, player)] = 0
-		_:
-			return false
+	if mode != Defs.ActivateMode.OPEN_DOOR:
+		return false
+	n.soft_off = Defs.DOOR_TICKS
+	n.door[player] = Defs.DOOR_TICKS
+	n.virus[player] = 0
+	n.det_timer[NodeState.hidden_slot(Defs.HiddenKind.VIRUS, player)] = 0
+	n.found[NodeState.hidden_slot(Defs.HiddenKind.VIRUS, player)] = 0
 	return true
 
 ## Вирус на машине отводит вору часть её DATA: true — байт ушёл вору и в буфер не попадёт.
@@ -87,6 +84,9 @@ static func detect(w: World) -> void:
 	for n in w.nodes:
 		if n.soft_off > 0:
 			n.soft_off -= 1
+		for p in Defs.MAX_PLAYERS:
+			if n.door[p] > 0:
+				n.door[p] -= 1
 		if n.owner < 0:
 			continue
 		var by_ids: bool = ids_covers(w, n.owner, n)
@@ -115,7 +115,7 @@ static func _advance(w: World, n: NodeState, kind: int, who: int, finder: int, b
 
 ## «Вычистить»: убирает обычную шкалу и всё найденное из скрытого. Ненайденное остаётся.
 static func clean(n: NodeState) -> void:
-	n.infect.fill(0)
+	n.infect.fill(0)    # вместе с шкалой уходит и 100% заражение (доступ и выключенное ПО)
 	for a in Defs.MAX_PLAYERS:
 		var sv: int = NodeState.hidden_slot(Defs.HiddenKind.VIRUS, a)
 		if n.found[sv] == 1:

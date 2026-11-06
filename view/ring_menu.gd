@@ -74,6 +74,7 @@ static func _collect(w: World, player: int, selected_node: int, target: int) -> 
 		if t.max_infect() > 0 or Stealth.has_found_threat(t):
 			var cp: Array = Agents.task_params(Defs.TaskKind.CLEAN_VIRUS, 0, t)
 			items.append({"label": "Вычистить вирус (%d Б, %d с)" % [cp[1], (int(cp[0]) + Defs.TICK_HZ - 1) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.CLEAN_VIRUS, "arg": 0})
+		items.append({"label": "Выгнать чужих агентов (%d с)" % (int(Agents.task_params(Defs.TaskKind.EVICT, 0)[0]) / Defs.TICK_HZ), "kind": "task", "task": Defs.TaskKind.EVICT, "arg": 0})
 		if t.prev_owner >= 0:
 			var ep: Array = Agents.task_params(Defs.TaskKind.ENTRENCH, 0)
 			items.append({"label": "Закрепиться (%d Б, %d с)" % [ep[1], int(ep[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.ENTRENCH, "arg": 0})
@@ -84,11 +85,10 @@ static func _collect(w: World, player: int, selected_node: int, target: int) -> 
 		var bp: Array = Agents.task_params(Defs.TaskKind.BACKDOOR, 0)
 		items.append({"label": "Бэкдор (%d Б, %d с)" % [bp[1], int(bp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.BACKDOOR, "arg": 0})
 		if sn != null and sn.my_virus:
-			items.append({"label": "Активировать: перехват", "kind": "activate", "mode": Defs.ActivateMode.TAKEOVER})
-			items.append({"label": "Активировать: отключить ПО", "kind": "activate", "mode": Defs.ActivateMode.DISABLE_SOFT})
-		if t.prev_owner == player and t.owner != player:
-			var rp: Array = Agents.task_params(Defs.TaskKind.ENTRENCH, 0)
-			items.append({"label": "Вернуть машину (%d Б, %d с)" % [rp[1], int(rp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.ENTRENCH, "arg": 0})
+			items.append({"label": "Активировать: открыть дверь", "kind": "activate", "mode": Defs.ActivateMode.OPEN_DOOR})
+		if sn != null and sn.my_entry:
+			var cp: Array = Agents.task_params(Defs.TaskKind.CAPTURE, 0, t)
+			items.append({"label": "Захватить (%d Б, %d с)" % [cp[1], int(cp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.CAPTURE, "arg": 0})
 	# Боевые роли: selected_node здесь — машина-исполнитель (её выбирает source_for).
 	if selected_node >= 0 and selected_node != target and _can_serve(w, player, selected_node, target):
 		if k_owner == Defs.NEUTRAL and Defs.INIT_NEEDED.has(t.type):

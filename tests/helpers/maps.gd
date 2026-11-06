@@ -188,3 +188,15 @@ static func pump(w: World, srcs: Array, dst_of: Array, ptype: int, per_s: int, t
 				acc[i] -= Defs.TICK_HZ
 				Network.inject(w, srcs[i], dst_of[i], ptype, w.nodes[srcs[i]].owner, 0)
 		w.step()
+
+## Все агенты игрока «в пути домой» надолго: на ядре и узлах их нет, никто не защищает.
+static func clear_defenders(w: World, player: int) -> void:
+	for a in w.agents:
+		if a.owner == player:
+			a.node = -1
+			a.mode = AgentState.Mode.LOST
+			a.lost_timer = 1000000
+
+## Машина заражена атакующим на 100% (как после полной шкалы PAYLOAD).
+static func infect_fully(w: World, node: int, attacker: int) -> void:
+	w.nodes[node].infect[attacker] = Defs.INFECT_MAX

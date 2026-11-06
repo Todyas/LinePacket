@@ -183,7 +183,7 @@ const AGENT_QUEUE_MAX: int = 3
 ## Агент, которого выкинули или потеряли в пути, появляется на ядре через 20 секунд.
 const AGENT_RETURN_TICKS: int = 400
 
-enum TaskKind { MOVE, CHANGE_PASSWORD, SET_KEYS, INSTALL_SOFT, CLEAN_VIRUS, STEAL_KEY, DRAIN_BUFFER, ENTRENCH, BACKDOOR }
+enum TaskKind { MOVE, CHANGE_PASSWORD, SET_KEYS, INSTALL_SOFT, CLEAN_VIRUS, STEAL_KEY, DRAIN_BUFFER, ENTRENCH, BACKDOOR, CAPTURE, EVICT }
 
 const TASK_NAMES: Dictionary = {
 	TaskKind.MOVE: "Перейти",
@@ -195,6 +195,8 @@ const TASK_NAMES: Dictionary = {
 	TaskKind.DRAIN_BUFFER: "Выкачать байты",
 	TaskKind.ENTRENCH: "Закрепиться",
 	TaskKind.BACKDOOR: "Поставить бэкдор",
+	TaskKind.CAPTURE: "Захватить",
+	TaskKind.EVICT: "Выгнать",
 }
 
 ## Время (с) и цена (байты) задач без аргумента. Установка ПО берёт числа из SOFT_DEFS.
@@ -207,6 +209,15 @@ const TASK_DEFS: Dictionary = {
 	TaskKind.ENTRENCH: {"time_s": 6, "cost": 10},
 	TaskKind.BACKDOOR: {"time_s": 10, "cost": 30},
 	TaskKind.CLEAN_VIRUS: {"time_s": 6, "cost": 10},   # +до 14 с по степени заражения
+	TaskKind.CAPTURE: {"time_s": 10, "cost": 20},      # числа машины; по типу узла см. CAPTURE_DEFS
+	TaskKind.EVICT: {"time_s": 5, "cost": 0},
+}
+
+## Захват агентом: время (с) и цена (байты) по типу узла. Остальные типы берут числа машины.
+const CAPTURE_DEFS: Dictionary = {
+	NodeType.MACHINE: {"time_s": 10, "cost": 20},
+	NodeType.GATEWAY: {"time_s": 10, "cost": 20},
+	NodeType.CORE: {"time_s": 40, "cost": 100},
 }
 
 ## --- Атака и захват чужих машин (S4) ---
@@ -279,9 +290,9 @@ const HIDDEN_DETECT_S: Dictionary = {
 ## Заражённая тайным вирусом машина отдаёт вору этот процент своих DATA, сниффер ворует столько же из транзита.
 const VIRUS_SKIM_PERCENT: int = 25
 const SNIFFER_STEAL_PERCENT: int = 25
-## Активация вируса: «отключить ПО» выводит ПО машины из строя на это число тиков.
-const ACTIVATE_DISABLE_SOFT_TICKS: int = 400
-enum ActivateMode { TAKEOVER, DISABLE_SOFT }
+## Активация вируса «Открыть дверь»: на это число тиков ПО машины выключено и у вора есть доступ. Вирус расходуется.
+const DOOR_TICKS: int = 400
+enum ActivateMode { OPEN_DOOR }
 
 ## --- Роли машин (S9) ---
 
@@ -350,5 +361,7 @@ const BOT_PROFILE: Dictionary = {
 	"hidden_percent": 25,       # шанс тайного заражения при деньгах
 	"payload_rich_bank": 200,   # сколько байт считается «богатым» банком
 	"core_pull": 10,            # тяга атаки к чужому ядру
+	"capture_retry_s": 40,      # сколько не повторяет захват той же машины, если агент не справился
+	"alarm_memory_s": 40,       # сколько после тревоги «агент берёт машину» посылает защитника
 	"threat_memory_s": 60,      # сколько помнит атаку по логу IDS
 }

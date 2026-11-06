@@ -231,6 +231,17 @@ func _draw_attack_meters(n: NodeState, c: Vector2) -> void:
 		if n.brute[p] > 0:
 			var g: float = clampf(float(n.brute[p]) / float(Defs.BRUTE_MAX), 0.0, 1.0)
 			draw_arc(c, NODE_RADIUS + 13.0, -PI / 2.0, -PI / 2.0 + TAU * g, 40, Color(Palette.of_owner(p), 0.7), 2.0, true)
+	# Захват агентом: самая внешняя дуга цветом захватчика; виден хозяину узла и самому захватчику.
+	for a in world.agents:
+		if a.node != n.id or a.owner == n.owner or a.mode != AgentState.Mode.WORK or int(a.queue[0][0]) != Defs.TaskKind.CAPTURE:
+			continue
+		if viewer >= 0 and viewer != n.owner and viewer != a.owner:
+			continue
+		var h: float = float(a.progress_permille()) / 1000.0
+		var col: Color = Palette.of_owner(a.owner)
+		if not Agents.capture_possible(world, a, n):
+			col = Color(col, 0.45)
+		draw_arc(c, NODE_RADIUS + 20.0, -PI / 2.0, -PI / 2.0 + TAU * h, 40, col, 5.0, true)
 
 ## Заливка снизу вверх пропорционально контролю.
 func _draw_control_fill(pts: PackedVector2Array, c: Vector2, control: int, col: Color) -> void:

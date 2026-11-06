@@ -35,7 +35,8 @@ func test_ring_menu_own_node_clean_and_entrench() -> void:
 	check(not _labels(RingMenu.items_for(w, 0, 0, 2)).contains("Закрепиться"))
 	Economy.takeover(w, w.nodes[2], 1)
 	check(_labels(RingMenu.items_for(w, 1, 3, 2)).contains("Закрепиться"))
-	check(_labels(RingMenu.items_for(w, 0, 0, 2)).contains("Вернуть машину"), "прошлый владелец может вернуть машину")
+	w.step()    # знания обновляются раз в тик
+	check(_labels(RingMenu.items_for(w, 0, 0, 2)).contains("Захватить"), "прошлый владелец по старым ключам может вернуть машину")
 
 func test_node_card_shows_down_infection_and_brute() -> void:
 	var w: World = TestMaps.siege()

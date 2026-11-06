@@ -73,18 +73,18 @@ func test_relay_doubles_combat_power() -> void:
 	TestMaps.boost(w, 4)
 	check_eq(Roles.power(w.nodes[4]), int(Defs.ROLE_POWER[Defs.NodeType.MACHINE]) * Defs.RELAY_COMBAT_PERCENT / 100)
 
-func test_role_reverts_when_target_becomes_own() -> void:
+func test_role_reverts_when_target_becomes_useless() -> void:
 	var w: World = TestMaps.siege()
 	w.players[1].bank = 10000
 	TestMaps.engage(w, 1, 3, 2, Defs.PacketType.PAYLOAD)
 	TestMaps.engage(w, 1, 4, 2, Defs.PacketType.PAYLOAD)
 	var guard: int = 0
-	while w.nodes[2].owner == 0 and guard < 800:
+	while not w.nodes[2].infected_by(1) and guard < 1600:
 		w.step()
 		guard += 1
-	check_eq(w.nodes[2].owner, 1)
+	check(w.nodes[2].infected_by(1))
 	w.run(2)
-	check_eq(w.nodes[3].role, Defs.Role.WORK, "цель захвачена — ядро возвращается к работе")
+	check_eq(w.nodes[3].role, Defs.Role.WORK, "цель заражена — ядро возвращается к работе")
 	check_eq(w.nodes[4].role, Defs.Role.WORK)
 
 func test_watch_role_updates_snapshots_in_radius() -> void:

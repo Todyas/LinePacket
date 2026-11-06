@@ -53,21 +53,25 @@ func _payload_world(with_av: bool, attackers: Array = [3, 4]) -> World:
 		TestMaps.engage(w, 1, a, 2, Defs.PacketType.PAYLOAD)
 	return w
 
-func test_payload_takes_over_machine_at_100_percent() -> void:
+func test_payload_infects_at_100_percent_but_keeps_owner() -> void:
 	var w: World = _payload_world(false)
+	w.nodes[2].install_soft(Defs.SoftType.FIREWALL)
 	var guard: int = 0
-	while w.nodes[2].owner == 0 and guard < 800:
+	while not w.nodes[2].infected_by(1) and guard < 1600:
 		w.step()
 		guard += 1
 	var m: NodeState = w.nodes[2]
-	check_eq(m.owner, 1, "100% заражения должны сменить владельца")
-	check_eq(m.prev_owner, 0)
-	check(m.access_mask & 1 != 0, "прошлый владелец сохраняет доступ по старым ключам")
-	check(m.access_mask & 2 != 0)
-	check(absi(m.control - Defs.TAKEOVER_CONTROL) <= 1000, "после захвата контроль у середины шкалы: %d" % m.control)
-	check_eq(w.players[1].captures, 1)
+	check(m.infected_by(1), "шкала заражения дошла до 100%")
+	check_eq(m.owner, 0, "заражение владельца не меняет")
+	check_eq(w.players[1].captures, 0)
+	check(not m.soft_active(Defs.SoftType.FIREWALL), "ПО защитника на заражённой машине молчит")
+	check(Agents.can_enter(m, 1), "у заразившего есть доступ для агента")
+	for nid in [3, 4]:
+		TestMaps.stand_down(w, nid)
+	w.run(600)
+	check(m.infected_by(1), "заражение держится, пока его не вычистят")
 	var needed: int = Defs.INFECT_MAX / Defs.INFECT_GAIN
-	check(w.delivered[Defs.PacketType.PAYLOAD] >= needed, "нужно хотя бы %d пакетов" % needed)
+	check(w.delivered[Defs.PacketType.PAYLOAD] >= needed - 5, "нужно около %d пакетов" % needed)
 
 func test_antivirus_slows_infection() -> void:
 	var plain: World = _payload_world(false, [4])
@@ -100,7 +104,7 @@ func test_payload_costs_bytes() -> void:
 
 func _ticks_to_takeover(w: World) -> int:
 	var t: int = 0
-	while w.nodes[2].owner == 0 and t < 1200:
+	while not w.nodes[2].infected_by(1) and t < 1600:
 		w.step()
 		t += 1
 	return t
@@ -203,17 +207,14 @@ func test_old_keys_let_previous_owner_back_until_keys_changed() -> void:
 	w2.run(80)
 	check_eq(Agents.agent_of(w2, 0, 0).mode, AgentState.Mode.LOST, "теперь прошлого владельца не пускают")
 
-func test_entrench_race_old_owner_retakes() -> void:
+func test_old_owner_retakes_with_old_keys_by_capture() -> void:
 	var w: World = TestMaps.siege()
-	w.nodes[2].install_soft(Defs.SoftType.FIREWALL)
 	Economy.takeover(w, w.nodes[2], 1)
+	TestMaps.clear_defenders(w, 1)
 	w.players[0].bank = 100
-	w.submit(Command.queue_task(0, w.tick, 0, Defs.TaskKind.ENTRENCH, 2))
-	w.run(200)
-	check_eq(w.nodes[2].owner, 0, "прошлый владелец успел «закрепиться» первым и вернул машину")
-	check_eq(w.nodes[2].access_mask, 1)
-	check_eq(w.nodes[2].prev_owner, -1)
-	check_eq(w.nodes[2].free_slots(), 2, "чужое ПО сбито")
+	w.submit(Command.queue_task(0, w.tick, 0, Defs.TaskKind.CAPTURE, 2))
+	w.run(400)
+	check_eq(w.nodes[2].owner, 0, "прошлый владелец вернул машину по старым ключам")
 
 func test_entrench_by_new_owner_locks_out_old() -> void:
 	var w: World = TestMaps.siege()
@@ -240,12 +241,14 @@ func test_clean_virus_resets_infection() -> void:
 	check_eq(w.nodes[2].infect[1], 0)
 	check_eq(w.players[0].bank >= 0, true)
 
-func test_core_capture_ends_match() -> void:
+func test_core_capture_by_agent_ends_match() -> void:
 	var w: World = TestMaps.rush()
 	w.players[1].bank = 1000
-	TestMaps.engage(w, 1, 1, 0, Defs.PacketType.PAYLOAD)
+	TestMaps.infect_fully(w, 0, 1)
+	TestMaps.clear_defenders(w, 0)
+	w.submit(Command.queue_task(1, 0, 0, Defs.TaskKind.CAPTURE, 0))
 	var guard: int = 0
-	while w.winner < 0 and guard < 1000:
+	while w.winner < 0 and guard < 2000:
 		w.step()
 		guard += 1
 	check_eq(w.winner, 1, "захват ядра завершает матч")
