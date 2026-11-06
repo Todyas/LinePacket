@@ -59,11 +59,25 @@ static func update(w: World) -> void:
 			k.observed[n.id] = 1
 			for lid in n.links:
 				k.observed[w.links[lid].other(n.id)] = 1
+		# Агент наблюдает узел, где стоит, и его соседей.
+		for a in w.agents:
+			if a.owner != p or not a.hired or a.node < 0:
+				continue
+			k.observed[a.node] = 1
+			for lid in w.nodes[a.node].links:
+				k.observed[w.links[lid].other(a.node)] = 1
 		for l in w.links:
 			k.link_seen[l.id] = 1 if (k.observed[l.a] == 1 or k.observed[l.b] == 1) else 0
 		for n in w.nodes:
 			if k.observed[n.id] == 1:
 				k.snaps[n.id] = NodeSnap.capture(n, p, w.tick)
+
+## Агент-разведчик проехал через узел: игрок получает его снимок.
+static func scout(w: World, player: int, node_id: int) -> void:
+	if player < 0 or player >= w.players.size():
+		return
+	ensure(w)
+	w.know[player].snaps[node_id] = NodeSnap.capture(w.nodes[node_id], player, w.tick)
 
 ## Дозор: снимок узла-источника и всех узлов в радиусе radius линков на момент вызова.
 static func watch(w: World, player: int, node_id: int, radius: int) -> void:

@@ -1,8 +1,6 @@
 extends Node2D
 ## Главная сцена: карта, тик симуляции 20 Гц, граф, пакеты, ввод, отладочный оверлей.
 
-const MAP_PATH: String = GameConfig.MAP_PATH
-
 var world: World
 var links_view: GraphView
 var nodes_view: GraphView
@@ -30,9 +28,16 @@ var _acc: float = 0.0
 var _step_ms_avg: float = 0.0
 var _drop_hist: PackedInt32Array = PackedInt32Array()
 
+## Камера на старте: на свою домашнюю подсеть (на малой карте — на центр).
+static func _start_view(w: World, player: int) -> Vector2:
+	if w.nodes.size() <= 30:
+		return Vector2(800, 450)
+	var core: NodeState = w.nodes[w.players[player].core_node]
+	return Vector2(core.x + 500, core.y)
+
 func _ready() -> void:
 	RenderingServer.set_default_clear_color(Palette.BACKGROUND)
-	var res: Dictionary = MapLoader.load_file(MAP_PATH, GameConfig.seed_value)
+	var res: Dictionary = MapLoader.load_file(GameConfig.map_path(), GameConfig.seed_value)
 	if res["world"] == null:
 		push_error(res["error"])
 		return
@@ -55,7 +60,9 @@ func _ready() -> void:
 	drops_fx = DropFx.new()
 	add_child(drops_fx)
 	camera = CameraCtl.new()
-	camera.position = Vector2(800, 450)
+	camera.position = _start_view(world, local_player)
+	var big: bool = world.nodes.size() > 30
+	camera.zoom = Vector2(0.6, 0.6) if big else Vector2.ONE
 	add_child(camera)
 	camera.make_current()
 	input_ctl = InputCtl.new()

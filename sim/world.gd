@@ -83,6 +83,8 @@ func _apply(c: Command) -> void:
 			ok = _apply_router_rule(c)
 		Command.Type.BUILD:
 			ok = Builds.apply(self, c.player, c.args)
+		Command.Type.HIRE_AGENT:
+			ok = Agents.apply_hire(self, c.player, c.args)
 		_:
 			ok = false
 	if ok:
@@ -156,7 +158,7 @@ func _apply_queue_task(c: Command) -> bool:
 	if idx < 0 or idx >= Defs.AGENTS_PER_PLAYER:
 		return false
 	var a: AgentState = Agents.agent_of(self, c.player, idx)
-	if a.queue.size() >= Defs.AGENT_QUEUE_MAX:
+	if not a.hired or a.queue.size() >= Defs.AGENT_QUEUE_MAX:
 		return false
 	if not Agents.validate_task(self, c.player, c.args[1], c.args[2], c.args[3]):
 		return false
@@ -170,6 +172,8 @@ func _apply_clear_queue(c: Command) -> bool:
 	if idx < 0 or idx >= Defs.AGENTS_PER_PLAYER:
 		return false
 	var a: AgentState = Agents.agent_of(self, c.player, idx)
+	if not a.hired:
+		return false
 	a.queue.clear()
 	if a.mode == AgentState.Mode.WORK:
 		a.mode = AgentState.Mode.IDLE   # оплаченная работа пропадает

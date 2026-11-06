@@ -99,6 +99,8 @@ static func _arrive(w: World, node_id: int, idx: int, via_link: int, via_dir: in
 	if _firewall_blocks(w, n, idx):
 		_drop(w, idx, via_link, via_dir, World.DROP_FIREWALL)
 		return
+	if pool.ptype[idx] == Defs.PacketType.AGENT:
+		Knowledge.scout(w, pool.owner[idx], node_id)    # агент в пути разведывает узлы, через которые едет
 	if pool.dst[idx] == node_id:
 		var cost: int = int(Defs.CPU_COST_ARRIVE[pool.ptype[idx]])
 		if not n.spend_cpu(cost):

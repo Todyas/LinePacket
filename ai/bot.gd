@@ -59,6 +59,7 @@ func act() -> void:
 	_retake_and_clean(mine)
 	_fortify(mine)
 	_build(mine)
+	_hire()
 	_expand(mine)
 	_watch(mine)
 	_attack(mine)
@@ -387,6 +388,15 @@ func _expand(mine: Array[int]) -> void:
 	if best >= 0:
 		for m in best_src:
 			_set_role(m, Defs.Role.CAPTURE, best)
+
+# --- Наём агентов ---
+
+func _hire() -> void:
+	var cost: int = v.hire_cost()
+	if cost < 0 or v.hiring() or v.tick() < int(prof["hire_after_s"]) * Defs.TICK_HZ:
+		return
+	if v.bank() >= cost + int(prof["hire_spare"]):
+		v.submit(Command.hire_agent(me, v.tick()))
 
 # --- Строительство ---
 

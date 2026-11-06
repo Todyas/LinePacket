@@ -70,7 +70,7 @@ static func text_at(w: World, viewer: int, player: int, screen_pos: Vector2, wor
 	if screen_pos.y < HUD_HEIGHT:
 		return "Режим перетаскивания: машину (или выделенную рамкой группу) тянете к цели. Сменить: Q W E R T.\n" + Hints.role(role_mode)
 	if screen_pos.y >= AGENT_TOP:
-		var i: int = int((screen_pos.x - 14.0) / 520.0)
+		var i: int = int((screen_pos.x - 14.0) / AgentPanel.BOX_STEP)
 		if i < 0 or i >= Defs.AGENTS_PER_PLAYER:
 			return ""
 		return agent_tip(w, player, i)
@@ -83,6 +83,8 @@ static func text_at(w: World, viewer: int, player: int, screen_pos: Vector2, wor
 
 static func agent_tip(w: World, player: int, idx: int) -> String:
 	var a: AgentState = Agents.agent_of(w, player, idx)
+	if not a.hired:
+		return "Свободное место агента. Нанять следующего: клавиша H или ПКМ по своему ядру (%d Б, %d с). Агентов всего до %d." % [Agents.hire_cost(w, player), Defs.HIRE_SECONDS, Defs.AGENTS_PER_PLAYER]
 	if a.queue.is_empty():
 		return "Агент %d. Очередь пуста: выберите клавишей %d, затем ПКМ по узлу." % [idx + 1, idx + 1]
 	var head: Array = a.queue[0]

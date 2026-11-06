@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 # Матчи бот против бота: scripts/bot_stats.sh [число матчей] [первый сид] [потолок минут]
+# Карта: MAP=res://maps/duel_large.json scripts/bot_stats.sh ... (по умолчанию малая Дуэль).
 # Печатает строку на матч и сводку: победы, средняя длина, захваты, доход.
 set -u
 cd "$(dirname "$0")/.."
 N="${1:-20}"
 FIRST="${2:-1}"
 CAP="${3:-40}"
+MAP="${MAP:-res://maps/duel.json}"
 GODOT="${GODOT:-godot}"
 OUT="$(mktemp -d)"
 "$GODOT" --headless --path . --import >/dev/null 2>&1
 JOBS="${JOBS:-4}"
-seq "$FIRST" "$((FIRST + N - 1))" | xargs -P "$JOBS" -I{} sh -c "\"$GODOT\" --headless --path . -s tools/bot_match.gd -- {} $CAP 2>&1 | grep '^MATCH' > \"$OUT/{}.txt\""
+seq "$FIRST" "$((FIRST + N - 1))" | xargs -P "$JOBS" -I{} sh -c "\"$GODOT\" --headless --path . -s tools/bot_match.gd -- {} $CAP $MAP 2>&1 | grep '^MATCH' > \"$OUT/{}.txt\""
 cat "$OUT"/*.txt | sort -t= -k2 -n
 python3 - "$OUT" <<'PY'
 import sys, glob, re

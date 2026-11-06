@@ -117,8 +117,20 @@ func my_agents() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for i in Defs.AGENTS_PER_PLAYER:
 		var a: AgentState = Agents.agent_of(_w, me, i)
+		if not a.hired:
+			continue
 		out.append({"idx": i, "node": a.node, "mode": a.mode, "queue": a.queue.duplicate(true)})
 	return out
+
+## Нанято агентов, идёт ли наём и цена следующего (-1 — больше нанимать некого).
+func hired_count() -> int:
+	return Agents.hired_count(_w, me)
+
+func hiring() -> bool:
+	return _w.players[me].hire_left > 0
+
+func hire_cost() -> int:
+	return Agents.hire_cost(_w, me)
 
 ## Единственный способ влиять на мир.
 func submit(cmd: Command) -> void:

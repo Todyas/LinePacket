@@ -1,0 +1,701 @@
+{
+ "name": "Большая Дуэль",
+ "players": 2,
+ "nodes": [
+  {
+   "id": 0,
+   "type": "core",
+   "x": 200,
+   "y": 800,
+   "owner": 0
+  },
+  {
+   "id": 1,
+   "type": "gateway",
+   "x": 380,
+   "y": 800,
+   "owner": 0
+  },
+  {
+   "id": 2,
+   "type": "machine",
+   "x": 380,
+   "y": 610,
+   "owner": -1
+  },
+  {
+   "id": 3,
+   "type": "machine",
+   "x": 380,
+   "y": 990,
+   "owner": -1
+  },
+  {
+   "id": 4,
+   "type": "machine",
+   "x": 200,
+   "y": 620,
+   "owner": -1
+  },
+  {
+   "id": 5,
+   "type": "machine",
+   "x": 200,
+   "y": 980,
+   "owner": -1
+  },
+  {
+   "id": 6,
+   "type": "router",
+   "x": 580,
+   "y": 800,
+   "owner": -1
+  },
+  {
+   "id": 7,
+   "type": "machine",
+   "x": 600,
+   "y": 560,
+   "owner": -1
+  },
+  {
+   "id": 8,
+   "type": "machine",
+   "x": 600,
+   "y": 1040,
+   "owner": -1
+  },
+  {
+   "id": 9,
+   "type": "machine",
+   "x": 800,
+   "y": 690,
+   "owner": -1
+  },
+  {
+   "id": 10,
+   "type": "machine",
+   "x": 800,
+   "y": 910,
+   "owner": -1
+  },
+  {
+   "id": 11,
+   "type": "router",
+   "x": 800,
+   "y": 420,
+   "owner": -1
+  },
+  {
+   "id": 12,
+   "type": "machine",
+   "x": 1010,
+   "y": 300,
+   "owner": -1
+  },
+  {
+   "id": 13,
+   "type": "machine",
+   "x": 1010,
+   "y": 520,
+   "owner": -1
+  },
+  {
+   "id": 14,
+   "type": "gateway",
+   "x": 800,
+   "y": 200,
+   "owner": -1
+  },
+  {
+   "id": 15,
+   "type": "router",
+   "x": 800,
+   "y": 1180,
+   "owner": -1
+  },
+  {
+   "id": 16,
+   "type": "machine",
+   "x": 1010,
+   "y": 1080,
+   "owner": -1
+  },
+  {
+   "id": 17,
+   "type": "machine",
+   "x": 1010,
+   "y": 1300,
+   "owner": -1
+  },
+  {
+   "id": 18,
+   "type": "machine",
+   "x": 800,
+   "y": 1400,
+   "owner": -1
+  },
+  {
+   "id": 19,
+   "type": "machine",
+   "x": 1200,
+   "y": 650,
+   "owner": -1
+  },
+  {
+   "id": 20,
+   "type": "machine",
+   "x": 1200,
+   "y": 950,
+   "owner": -1
+  },
+  {
+   "id": 21,
+   "type": "machine",
+   "x": 1200,
+   "y": 800,
+   "owner": -1
+  },
+  {
+   "id": 22,
+   "type": "core",
+   "x": 2800,
+   "y": 800,
+   "owner": 1
+  },
+  {
+   "id": 23,
+   "type": "gateway",
+   "x": 2620,
+   "y": 800,
+   "owner": 1
+  },
+  {
+   "id": 24,
+   "type": "machine",
+   "x": 2620,
+   "y": 610,
+   "owner": -1
+  },
+  {
+   "id": 25,
+   "type": "machine",
+   "x": 2620,
+   "y": 990,
+   "owner": -1
+  },
+  {
+   "id": 26,
+   "type": "machine",
+   "x": 2800,
+   "y": 620,
+   "owner": -1
+  },
+  {
+   "id": 27,
+   "type": "machine",
+   "x": 2800,
+   "y": 980,
+   "owner": -1
+  },
+  {
+   "id": 28,
+   "type": "router",
+   "x": 2420,
+   "y": 800,
+   "owner": -1
+  },
+  {
+   "id": 29,
+   "type": "machine",
+   "x": 2400,
+   "y": 560,
+   "owner": -1
+  },
+  {
+   "id": 30,
+   "type": "machine",
+   "x": 2400,
+   "y": 1040,
+   "owner": -1
+  },
+  {
+   "id": 31,
+   "type": "machine",
+   "x": 2200,
+   "y": 690,
+   "owner": -1
+  },
+  {
+   "id": 32,
+   "type": "machine",
+   "x": 2200,
+   "y": 910,
+   "owner": -1
+  },
+  {
+   "id": 33,
+   "type": "router",
+   "x": 2200,
+   "y": 420,
+   "owner": -1
+  },
+  {
+   "id": 34,
+   "type": "machine",
+   "x": 1990,
+   "y": 300,
+   "owner": -1
+  },
+  {
+   "id": 35,
+   "type": "machine",
+   "x": 1990,
+   "y": 520,
+   "owner": -1
+  },
+  {
+   "id": 36,
+   "type": "gateway",
+   "x": 2200,
+   "y": 200,
+   "owner": -1
+  },
+  {
+   "id": 37,
+   "type": "router",
+   "x": 2200,
+   "y": 1180,
+   "owner": -1
+  },
+  {
+   "id": 38,
+   "type": "machine",
+   "x": 1990,
+   "y": 1080,
+   "owner": -1
+  },
+  {
+   "id": 39,
+   "type": "machine",
+   "x": 1990,
+   "y": 1300,
+   "owner": -1
+  },
+  {
+   "id": 40,
+   "type": "machine",
+   "x": 2200,
+   "y": 1400,
+   "owner": -1
+  },
+  {
+   "id": 41,
+   "type": "machine",
+   "x": 1800,
+   "y": 650,
+   "owner": -1
+  },
+  {
+   "id": 42,
+   "type": "machine",
+   "x": 1800,
+   "y": 950,
+   "owner": -1
+  },
+  {
+   "id": 43,
+   "type": "machine",
+   "x": 1800,
+   "y": 800,
+   "owner": -1
+  },
+  {
+   "id": 44,
+   "type": "gateway",
+   "x": 1500,
+   "y": 300,
+   "owner": -1
+  },
+  {
+   "id": 45,
+   "type": "gateway",
+   "x": 1500,
+   "y": 1300,
+   "owner": -1
+  },
+  {
+   "id": 46,
+   "type": "router",
+   "x": 1500,
+   "y": 800,
+   "owner": -1
+  },
+  {
+   "id": 47,
+   "type": "machine",
+   "x": 1500,
+   "y": 560,
+   "owner": -1
+  },
+  {
+   "id": 48,
+   "type": "machine",
+   "x": 1500,
+   "y": 1040,
+   "owner": -1
+  }
+ ],
+ "links": [
+  {
+   "a": 0,
+   "b": 1,
+   "kind": "optic"
+  },
+  {
+   "a": 0,
+   "b": 4,
+   "kind": "cable"
+  },
+  {
+   "a": 0,
+   "b": 5,
+   "kind": "cable"
+  },
+  {
+   "a": 1,
+   "b": 2,
+   "kind": "cable"
+  },
+  {
+   "a": 1,
+   "b": 3,
+   "kind": "cable"
+  },
+  {
+   "a": 1,
+   "b": 6,
+   "kind": "cable"
+  },
+  {
+   "a": 2,
+   "b": 4,
+   "kind": "cable"
+  },
+  {
+   "a": 3,
+   "b": 5,
+   "kind": "cable"
+  },
+  {
+   "a": 6,
+   "b": 7,
+   "kind": "cable"
+  },
+  {
+   "a": 6,
+   "b": 8,
+   "kind": "cable"
+  },
+  {
+   "a": 6,
+   "b": 9,
+   "kind": "cable"
+  },
+  {
+   "a": 6,
+   "b": 10,
+   "kind": "cable"
+  },
+  {
+   "a": 7,
+   "b": 9,
+   "kind": "cable"
+  },
+  {
+   "a": 8,
+   "b": 10,
+   "kind": "cable"
+  },
+  {
+   "a": 7,
+   "b": 11,
+   "kind": "wifi"
+  },
+  {
+   "a": 11,
+   "b": 13,
+   "kind": "cable"
+  },
+  {
+   "a": 11,
+   "b": 14,
+   "kind": "cable"
+  },
+  {
+   "a": 12,
+   "b": 13,
+   "kind": "cable"
+  },
+  {
+   "a": 12,
+   "b": 14,
+   "kind": "cable"
+  },
+  {
+   "a": 8,
+   "b": 15,
+   "kind": "wifi"
+  },
+  {
+   "a": 15,
+   "b": 16,
+   "kind": "cable"
+  },
+  {
+   "a": 15,
+   "b": 18,
+   "kind": "cable"
+  },
+  {
+   "a": 16,
+   "b": 17,
+   "kind": "cable"
+  },
+  {
+   "a": 17,
+   "b": 18,
+   "kind": "cable"
+  },
+  {
+   "a": 19,
+   "b": 21,
+   "kind": "cable"
+  },
+  {
+   "a": 20,
+   "b": 21,
+   "kind": "cable"
+  },
+  {
+   "a": 13,
+   "b": 19,
+   "kind": "cable"
+  },
+  {
+   "a": 16,
+   "b": 20,
+   "kind": "cable"
+  },
+  {
+   "a": 12,
+   "b": 44,
+   "kind": "optic"
+  },
+  {
+   "a": 17,
+   "b": 45,
+   "kind": "optic"
+  },
+  {
+   "a": 21,
+   "b": 46,
+   "kind": "optic"
+  },
+  {
+   "a": 19,
+   "b": 47,
+   "kind": "cable"
+  },
+  {
+   "a": 20,
+   "b": 48,
+   "kind": "cable"
+  },
+  {
+   "a": 22,
+   "b": 23,
+   "kind": "optic"
+  },
+  {
+   "a": 22,
+   "b": 26,
+   "kind": "cable"
+  },
+  {
+   "a": 22,
+   "b": 27,
+   "kind": "cable"
+  },
+  {
+   "a": 23,
+   "b": 24,
+   "kind": "cable"
+  },
+  {
+   "a": 23,
+   "b": 25,
+   "kind": "cable"
+  },
+  {
+   "a": 23,
+   "b": 28,
+   "kind": "cable"
+  },
+  {
+   "a": 24,
+   "b": 26,
+   "kind": "cable"
+  },
+  {
+   "a": 25,
+   "b": 27,
+   "kind": "cable"
+  },
+  {
+   "a": 28,
+   "b": 29,
+   "kind": "cable"
+  },
+  {
+   "a": 28,
+   "b": 30,
+   "kind": "cable"
+  },
+  {
+   "a": 28,
+   "b": 31,
+   "kind": "cable"
+  },
+  {
+   "a": 28,
+   "b": 32,
+   "kind": "cable"
+  },
+  {
+   "a": 29,
+   "b": 31,
+   "kind": "cable"
+  },
+  {
+   "a": 30,
+   "b": 32,
+   "kind": "cable"
+  },
+  {
+   "a": 29,
+   "b": 33,
+   "kind": "wifi"
+  },
+  {
+   "a": 33,
+   "b": 35,
+   "kind": "cable"
+  },
+  {
+   "a": 33,
+   "b": 36,
+   "kind": "cable"
+  },
+  {
+   "a": 34,
+   "b": 35,
+   "kind": "cable"
+  },
+  {
+   "a": 34,
+   "b": 36,
+   "kind": "cable"
+  },
+  {
+   "a": 30,
+   "b": 37,
+   "kind": "wifi"
+  },
+  {
+   "a": 37,
+   "b": 38,
+   "kind": "cable"
+  },
+  {
+   "a": 37,
+   "b": 40,
+   "kind": "cable"
+  },
+  {
+   "a": 38,
+   "b": 39,
+   "kind": "cable"
+  },
+  {
+   "a": 39,
+   "b": 40,
+   "kind": "cable"
+  },
+  {
+   "a": 41,
+   "b": 43,
+   "kind": "cable"
+  },
+  {
+   "a": 42,
+   "b": 43,
+   "kind": "cable"
+  },
+  {
+   "a": 35,
+   "b": 41,
+   "kind": "cable"
+  },
+  {
+   "a": 38,
+   "b": 42,
+   "kind": "cable"
+  },
+  {
+   "a": 34,
+   "b": 44,
+   "kind": "optic"
+  },
+  {
+   "a": 39,
+   "b": 45,
+   "kind": "optic"
+  },
+  {
+   "a": 43,
+   "b": 46,
+   "kind": "optic"
+  },
+  {
+   "a": 41,
+   "b": 47,
+   "kind": "cable"
+  },
+  {
+   "a": 42,
+   "b": 48,
+   "kind": "cable"
+  },
+  {
+   "a": 44,
+   "b": 47,
+   "kind": "cable"
+  },
+  {
+   "a": 45,
+   "b": 48,
+   "kind": "cable"
+  },
+  {
+   "a": 47,
+   "b": 46,
+   "kind": "cable"
+  },
+  {
+   "a": 48,
+   "b": 46,
+   "kind": "cable"
+  }
+ ]
+}

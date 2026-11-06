@@ -178,7 +178,12 @@ const STORAGE_BUFFER_BONUS: int = 100
 const RELAY_COMBAT_PERCENT: int = 200
 const RELAY_DATA_PERCENT: int = 50
 
-const AGENTS_PER_PLAYER: int = 3
+## Мест для агентов у игрока; на старте нанято AGENTS_START, остальных нанимают на ядре.
+const AGENTS_PER_PLAYER: int = 5
+const AGENTS_START: int = 3
+## Цена найма очередного агента (4-го и 5-го) и время найма.
+const HIRE_COSTS: Array = [300, 600]
+const HIRE_SECONDS: int = 30
 const AGENT_QUEUE_MAX: int = 3
 ## Агент, которого выкинули или потеряли в пути, появляется на ядре через 20 секунд.
 const AGENT_RETURN_TICKS: int = 400
@@ -405,4 +410,6 @@ const BOT_PROFILE: Dictionary = {
 	"build_cpu_levels": 1,      # уровней CPU у боевых машин
 	"build_cpu_start_s": 120,   # с какой минуты улучшает CPU боевых машин
 	"build_parallel": 1,        # строек одновременно
+	"hire_after_s": 480,        # с какой минуты нанимает агентов
+	"hire_spare": 150,          # и сколько байт должно остаться после найма
 }

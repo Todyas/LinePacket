@@ -12,6 +12,7 @@ var queue: Array = []       # задачи: [вид, узел, аргумент]
 var work_left: int = 0      # тиков до конца текущей задачи
 var work_total: int = 0
 var lost_timer: int = 0
+var hired: bool = true       # нанят ли агент; место без агента ничего не делает и нигде не стоит
 
 func hash_into(h: Hasher) -> void:
 	h.add(id)
@@ -21,6 +22,7 @@ func hash_into(h: Hasher) -> void:
 	h.add(work_left)
 	h.add(work_total)
 	h.add(lost_timer)
+	h.add(1 if hired else 0)
 	h.add(queue.size())
 	for t in queue:
 		h.add(int(t[0]))

@@ -2,7 +2,7 @@ class_name Command
 extends RefCounted
 ## Единственный способ изменить мир. Игрок, бот, сеть и реплей кладут команды в очередь.
 
-enum Type { NOOP, SET_ROLE, QUEUE_TASK, CLEAR_QUEUE, ACTIVATE, SET_ROUTER_RULE, BUILD }
+enum Type { NOOP, SET_ROLE, QUEUE_TASK, CLEAR_QUEUE, ACTIVATE, SET_ROUTER_RULE, BUILD, HIRE_AGENT }
 
 var type: int = Type.NOOP
 var player: int = 0
@@ -42,6 +42,10 @@ static func set_router_rule(p: int, at_tick: int, node: int, open: bool) -> Comm
 ## Стройка: kind из Defs.BuildKind; a — узел (для линка один конец), b — второй конец линка или -1.
 static func build(p: int, at_tick: int, kind: int, a: int, b: int = -1) -> Command:
 	return make(Type.BUILD, p, at_tick, [kind, a, b])
+
+## Нанять следующего агента на ядре.
+static func hire_agent(p: int, at_tick: int) -> Command:
+	return make(Type.HIRE_AGENT, p, at_tick, [])
 
 static func from_array(a: Array) -> Command:
 	var c := Command.new()

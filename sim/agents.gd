@@ -107,8 +107,53 @@ static func can_enter(n: NodeState, player: int) -> bool:
 	return n.owner == player or n.down or (n.access_mask & (1 << player)) != 0 or n.backdoor[player] == 1 \
 		or n.door[player] > 0 or n.infected_by(player)
 
+## Нанято агентов у игрока.
+static func hired_count(w: World, player: int) -> int:
+	var c: int = 0
+	for i in Defs.AGENTS_PER_PLAYER:
+		if agent_of(w, player, i).hired:
+			c += 1
+	return c
+
+## Цена следующего найма; -1 — нанимать больше некого.
+static func hire_cost(w: World, player: int) -> int:
+	var k: int = hired_count(w, player) - Defs.AGENTS_START
+	if k < 0 or k >= Defs.HIRE_COSTS.size():
+		return -1
+	return int(Defs.HIRE_COSTS[k])
+
+## Команда HIRE_AGENT: байты списываются сразу, агент выходит на ядре через HIRE_SECONDS. Один наём за раз.
+static func apply_hire(w: World, player: int, args: Array) -> bool:
+	if not args.is_empty() or player < 0 or player >= w.players.size():
+		return false
+	var ps: PlayerState = w.players[player]
+	var cost: int = hire_cost(w, player)
+	if cost < 0 or ps.hire_left > 0 or ps.bank < cost:
+		return false
+	ps.bank -= cost
+	ps.hire_left = Defs.HIRE_SECONDS * Defs.TICK_HZ
+	return true
+
+static func _step_hiring(w: World) -> void:
+	for ps in w.players:
+		if ps.hire_left <= 0:
+			continue
+		ps.hire_left -= 1
+		if ps.hire_left > 0:
+			continue
+		for i in Defs.AGENTS_PER_PLAYER:
+			var a: AgentState = agent_of(w, ps.id, i)
+			if not a.hired:
+				a.hired = true
+				a.node = ps.core_node
+				a.mode = AgentState.Mode.IDLE
+				break
+
 static func step(w: World) -> void:
+	_step_hiring(w)
 	for a in w.agents:
+		if not a.hired:
+			continue
 		match a.mode:
 			AgentState.Mode.LOST:
 				a.lost_timer -= 1

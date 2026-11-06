@@ -67,6 +67,11 @@ func test_lost_observation_keeps_last_state_as_aging_snapshot() -> void:
 	w.step()
 	var seen_tick: int = Knowledge.snap(w, 0, 1).tick
 	w.nodes[0].owner = Defs.NEUTRAL      # P0 потерял ядро: соседей он больше не видит
+	for a in w.agents:                   # и агентов, которые наблюдали бы с ядра, тоже нет
+		if a.owner == 0:
+			a.node = -1
+			a.mode = AgentState.Mode.LOST
+			a.lost_timer = 100000
 	w.run(100)
 	check_eq(Knowledge.level(w, 0, 1), Knowledge.Level.SNAPSHOT)
 	check(Knowledge.age(w, 0, 1) >= 90, "возраст растёт: %d" % Knowledge.age(w, 0, 1))

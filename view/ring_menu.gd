@@ -65,6 +65,12 @@ static func _collect(w: World, player: int, selected_node: int, target: int) -> 
 			items.append({"label": "Открыть транзит", "kind": "router_rule", "open": true})
 	if t.owner == player:
 		items.append({"label": "Строить…", "kind": "build_menu"})
+		var hc: int = Agents.hire_cost(w, player)
+		if t.type == Defs.NodeType.CORE and hc >= 0:
+			if w.players[player].hire_left > 0:
+				items.append({"label": "Наём агента идёт", "kind": "info", "hint": "Агент выйдет на ядре через %d с." % ((w.players[player].hire_left + Defs.TICK_HZ - 1) / Defs.TICK_HZ)})
+			else:
+				items.append({"label": "Нанять агента (%d Б, %d с)" % [hc, Defs.HIRE_SECONDS], "kind": "hire"})
 		items.append({"label": "Агент сюда", "kind": "task", "task": Defs.TaskKind.MOVE, "arg": 0})
 		var pw: Array = Agents.task_params(Defs.TaskKind.CHANGE_PASSWORD, 0)
 		items.append({"label": "Сменить пароль (%d Б, %d с)" % [pw[1], int(pw[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.CHANGE_PASSWORD, "arg": 0})

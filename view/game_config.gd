@@ -2,7 +2,15 @@ class_name GameConfig
 extends RefCounted
 ## Настройки матча, выбранные в меню. Живут между сценами; sim их не видит.
 
-const MAP_PATH: String = "res://maps/duel.json"
+## Карты для выбора в меню; по умолчанию Большая Дуэль.
+const MAPS: Array = [
+	{"name": "Дуэль (малая, 24 узла)", "path": "res://maps/duel.json"},
+	{"name": "Большая Дуэль (49 узлов)", "path": "res://maps/duel_large.json"},
+]
+static var map_index: int = 1
+
+static func map_path() -> String:
+	return String(MAPS[clampi(map_index, 0, MAPS.size() - 1)]["path"])
 const SEED_MAX: int = 999999999
 
 static var seed_value: int = 1

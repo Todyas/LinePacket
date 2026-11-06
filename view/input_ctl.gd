@@ -237,8 +237,12 @@ func _on_key(k: InputEventKey) -> void:
 		return
 	if MODE_KEYS.has(k.keycode):
 		role_mode = MODE_KEYS[k.keycode]
-	elif k.keycode >= KEY_1 and k.keycode <= KEY_3:
-		selected_agent = k.keycode - KEY_1
+	elif k.keycode >= KEY_1 and k.keycode <= KEY_5:
+		var want: int = k.keycode - KEY_1
+		if Agents.agent_of(world, local_player, want).hired:
+			selected_agent = want
+	elif k.keycode == KEY_H:
+		hire_agent()
 	elif k.keycode == KEY_F2 and OS.is_debug_build():
 		switch_side()
 	elif k.keycode == KEY_B:
@@ -255,6 +259,19 @@ func _on_key(k: InputEventKey) -> void:
 			queue_redraw()
 		else:
 			pause_toggled.emit()   # нечего закрывать: Esc открывает паузу
+
+## Нанять следующего агента; отказ объясняется сообщением.
+func hire_agent() -> void:
+	var cost: int = Agents.hire_cost(world, local_player)
+	var ps: PlayerState = world.players[local_player]
+	if cost < 0:
+		add_notice("Наём: все %d агентов уже наняты" % Defs.AGENTS_PER_PLAYER)
+	elif ps.hire_left > 0:
+		add_notice("Наём: агент уже выходит на ядро")
+	elif ps.bank < cost:
+		add_notice("Наём: не хватает байт (%d)" % cost)
+	else:
+		submit(Command.hire_agent(local_player, world.tick))
 
 ## Подменю строительства для выбранного своего узла (клавиша B или пункт «Строить…»).
 func open_build_menu(node: int = -1, screen_pos: Vector2 = Vector2(-1, -1)) -> void:
@@ -314,6 +331,8 @@ func apply_item(item: Dictionary) -> void:
 		else:
 			group.append(ring_source)
 		order_role(group, int(item["role"]), ring_target)
+	elif item["kind"] == "hire":
+		hire_agent()
 	elif item["kind"] == "build_menu":
 		open_build_menu(ring_target, ring_pos)
 	elif item["kind"] == "build":

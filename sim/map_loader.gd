@@ -142,7 +142,8 @@ static func load_dict(d: Dictionary, seed_value: int) -> Dictionary:
 			var ag := AgentState.new()
 			ag.id = k
 			ag.owner = p
-			ag.node = ps.core_node
+			ag.hired = k < Defs.AGENTS_START
+			ag.node = ps.core_node if ag.hired else -1
 			w.agents.append(ag)
 
 	# Связность графа.

@@ -6,11 +6,15 @@ func _agent(w: World, idx: int = 0, player: int = 0) -> AgentState:
 func test_three_agents_start_on_core() -> void:
 	var w: World = TestMaps.chain()
 	for p in 2:
-		for k in Defs.AGENTS_PER_PLAYER:
+		for k in Defs.AGENTS_START:
 			var a: AgentState = _agent(w, k, p)
 			check_eq(a.node, w.players[p].core_node)
 			check_eq(a.mode, AgentState.Mode.IDLE)
-	check_eq(w.agents.size(), 6)
+			check(a.hired)
+		for k in range(Defs.AGENTS_START, Defs.AGENTS_PER_PLAYER):
+			check(not _agent(w, k, p).hired, "4-й и 5-й агенты ещё не наняты")
+			check_eq(_agent(w, k, p).node, -1)
+	check_eq(w.agents.size(), 2 * Defs.AGENTS_PER_PLAYER)
 
 func test_task_spends_bytes_and_lasts_defs_time() -> void:
 	var w: World = TestMaps.chain()

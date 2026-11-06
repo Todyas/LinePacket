@@ -7,6 +7,7 @@ var bank: int = 0
 var income_hist: PackedInt32Array = PackedInt32Array()   # байт по тикам за последнюю секунду
 var earned_total: int = 0
 var captures: int = 0          # захвачено нейтралов за матч
+var hire_left: int = 0         # тиков до выхода нанимаемого агента; 0 — наёма нет
 
 func _init() -> void:
 	income_hist.resize(Defs.LOAD_WINDOW)
@@ -25,3 +26,4 @@ func hash_into(h: Hasher) -> void:
 	h.add_array(income_hist)
 	h.add(earned_total)
 	h.add(captures)
+	h.add(hire_left)

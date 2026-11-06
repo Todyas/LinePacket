@@ -4,15 +4,20 @@ extends TestCase
 func test_main_scene_runs() -> void:
 	var scene: PackedScene = load("res://view/main.tscn")
 	check(scene != null, "сцена не загрузилась")
-	var main: Node = scene.instantiate()
-	Engine.get_main_loop().root.add_child(main)
-	await Engine.get_main_loop().process_frame
-	await Engine.get_main_loop().process_frame
-	check(main.world != null, "мир не создан")
-	check_eq(main.world.nodes.size(), 24)
-	main._process(0.05)
-	check(main.world.tick >= 1, "симуляция не тикает")
-	main.queue_free()
+	var expected: Array[int] = [24, 49]
+	for idx in 2:
+		GameConfig.map_index = idx
+		var main: Node = scene.instantiate()
+		Engine.get_main_loop().root.add_child(main)
+		await Engine.get_main_loop().process_frame
+		await Engine.get_main_loop().process_frame
+		check(main.world != null, "мир не создан")
+		check_eq(main.world.nodes.size(), expected[idx])
+		main._process(0.5)
+		check(main.world.tick >= 1, "симуляция не тикает")
+		main.queue_free()
+		await Engine.get_main_loop().process_frame
+	GameConfig.map_index = 1
 
 func test_shapes_by_type() -> void:
 	var g := GraphView.new()
