@@ -30,7 +30,7 @@ static func _pick_supplier(w: World, m: NodeState, core: int) -> int:
 		elif cand.type == Defs.NodeType.SWITCH:
 			continue
 		else:
-			if cand.control < Defs.SUPPLY_MIN_CONTROL:
+			if cand.control < Defs.SUPPLY_MIN_CONTROL or cand.down:
 				continue
 			# Кормящий должен быть ближе к ядру, иначе два узла «кормили» бы друг друга.
 			if w.route_dist[cand.id][core] >= dc_m:
@@ -56,8 +56,8 @@ static func _pick_gateway(w: World, m: NodeState) -> int:
 ## Эмиссия автоматических пакетов: KEEPALIVE и DATA.
 static func emit(w: World) -> void:
 	for n in w.nodes:
-		if n.owner < 0:
-			continue
+		if n.owner < 0 or n.down:
+			continue    # лежащая машина не шлёт ни DATA, ни KEEPALIVE
 		if n.type != Defs.NodeType.GATEWAY and n.type != Defs.NodeType.SWITCH:
 			_produce_and_send_data(w, n)
 		if n.supplier >= 0:
@@ -65,12 +65,13 @@ static func emit(w: World) -> void:
 			while n.ka_acc >= Defs.TICK_HZ:
 				n.ka_acc -= Defs.TICK_HZ
 				var sup: NodeState = w.nodes[n.supplier]
-				if sup.owner == n.owner and sup.spend_cpu(Defs.CPU_COST_EMIT):
+				if sup.owner == n.owner and not sup.down and sup.spend_cpu(Defs.CPU_COST_EMIT):
+					sup.auto_sent += 1
 					Network.inject(w, sup.id, n.id, Defs.PacketType.KEEPALIVE, n.owner, 0)
 
 static func _produce_and_send_data(w: World, n: NodeState) -> void:
 	var limit: int = buffer_limit(n)
-	var data_pct: int = Defs.RELAY_DATA_PERCENT if n.has_soft(Defs.SoftType.RELAY) else 100
+	var data_pct: int = Defs.RELAY_DATA_PERCENT if n.soft_active(Defs.SoftType.RELAY) else 100
 	n.produce_acc += Defs.DATA_RATE * data_pct / 100
 	while n.produce_acc >= Defs.TICK_HZ:
 		n.produce_acc -= Defs.TICK_HZ
@@ -85,6 +86,7 @@ static func _produce_and_send_data(w: World, n: NodeState) -> void:
 		if not n.spend_cpu(Defs.CPU_COST_EMIT):
 			break
 		if Network.inject(w, n.id, n.gw_target, Defs.PacketType.DATA, n.owner, 0):
+			n.auto_sent += 1
 			n.buffer -= Defs.DATA_VALUE
 		else:
 			break   # очередь порта полна: байты остаются в буфере
@@ -103,7 +105,7 @@ static func begin_tick(w: World) -> void:
 	for n in w.nodes:
 		if n.type == Defs.NodeType.GATEWAY:
 			n.gw_credit = mini(n.gw_credit + Defs.GATEWAY_CAP_PER_S, Defs.GATEWAY_CAP_PER_S * Defs.GATEWAY_BURST_TICKS)
-		if n.has_soft(Defs.SoftType.FIREWALL):
+		if n.soft_active(Defs.SoftType.FIREWALL):
 			n.fw_credit = mini(n.fw_credit + Defs.FIREWALL_LIMIT_PER_S, Defs.FIREWALL_LIMIT_PER_S * Defs.FIREWALL_BURST_TICKS)
 
 ## Конец тика: распад контроля и шкал захвата.
@@ -118,6 +120,19 @@ static func upkeep(w: World) -> void:
 		n.control -= Defs.CONTROL_DECAY_PER_S / Defs.TICK_HZ
 		if n.control <= 0:
 			release_node(w, n)
+	# Шкалы заражения и подбора пароля тают.
+	for n in w.nodes:
+		if n.owner < 0:
+			continue
+		var inf_dec: int = Defs.INFECT_DECAY_PER_S / Defs.TICK_HZ
+		if n.soft_active(Defs.SoftType.ANTIVIRUS):
+			inf_dec += Defs.ANTIVIRUS_DECAY_PER_S / Defs.TICK_HZ
+		var br_dec: int = Defs.BRUTE_DECAY_PER_S / Defs.TICK_HZ
+		for p in Defs.MAX_PLAYERS:
+			if n.infect[p] > 0:
+				n.infect[p] = maxi(0, n.infect[p] - inf_dec)
+			if n.brute[p] > 0:
+				n.brute[p] = maxi(0, n.brute[p] - br_dec)
 	# Шкалы захвата раз в секунду.
 	if w.tick % Defs.TICK_HZ == 0:
 		for n in w.nodes:
@@ -131,6 +146,9 @@ static func release_node(w: World, n: NodeState) -> void:
 	n.owner = Defs.NEUTRAL
 	n.clear_soft()
 	n.reset_access()
+	n.clear_threats()
+	n.prev_owner = -1
+	n.down = false
 	Agents.on_node_lost(w, n.id, old_owner)
 	n.control = 0
 	n.buffer = 0
@@ -159,6 +177,9 @@ static func on_keepalive(_w: World, node: NodeState, owner: int) -> void:
 
 ## INIT дошёл до нейтрала: заполняет шкалу атакующего и сбивает шкалы остальных.
 static func on_init(w: World, node: NodeState, owner: int) -> void:
+	if node.owner >= 0 and node.owner != owner and node.type != Defs.NodeType.SWITCH:
+		_brute_force(w, node, owner)
+		return
 	if node.owner != Defs.NEUTRAL or not Defs.INIT_NEEDED.has(node.type):
 		return
 	node.capture_tick = w.tick
@@ -176,6 +197,8 @@ static func capture_node(w: World, node: NodeState, owner: int) -> void:
 	node.buffer = 0
 	node.clear_soft()
 	node.reset_access()
+	node.clear_threats()
+	node.prev_owner = -1
 	w.players[owner].captures += 1
 	w.routes_dirty = true
 	# Потоки INIT на этот узел больше не нужны.
@@ -186,3 +209,44 @@ static func capture_node(w: World, node: NodeState, owner: int) -> void:
 			w.flows.remove_at(i)
 		else:
 			i += 1
+
+## INIT на чужую машину подбирает пароль: слабый сдаётся быстро, сильный медленно, ключи никак.
+static func _brute_force(_w: World, node: NodeState, attacker: int) -> void:
+	if node.down or (node.access_mask & (1 << attacker)) != 0:
+		return    # лежащая машина доступ не проверяет, а доступ у атакующего уже есть
+	var gain: int = int(Defs.BRUTE_GAIN[node.access_mode])
+	if gain <= 0:
+		return
+	node.brute[attacker] = mini(Defs.BRUTE_MAX, node.brute[attacker] + gain)
+	if node.brute[attacker] >= Defs.BRUTE_MAX:
+		node.access_mask |= 1 << attacker
+		node.brute[attacker] = 0
+
+## PAYLOAD дошёл до чужой машины: заполняет шкалу заражения атакующего.
+static func on_payload(w: World, node: NodeState, attacker: int) -> void:
+	if node.owner < 0 or node.owner == attacker or node.type == Defs.NodeType.SWITCH:
+		return
+	var gain: int = Defs.INFECT_GAIN
+	if node.soft_active(Defs.SoftType.ANTIVIRUS):
+		gain = gain * Defs.ANTIVIRUS_GAIN_PERCENT / 100
+	node.infect[attacker] = mini(Defs.INFECT_MAX, node.infect[attacker] + gain)
+	if node.infect[attacker] >= Defs.INFECT_MAX:
+		takeover(w, node, attacker)
+
+## Машина меняет владельца (заражение 100% или «закрепиться» агентом прошлого владельца).
+## Прошлый владелец сохраняет доступ по старым ключам, его агенты вылетают.
+static func takeover(w: World, node: NodeState, attacker: int) -> void:
+	var old: int = node.owner
+	node.prev_owner = old
+	node.owner = attacker
+	node.control = Defs.TAKEOVER_CONTROL
+	node.clear_threats()
+	node.access_mask |= 1 << attacker
+	node.capture.fill(0)
+	node.ka_acc = 0
+	w.players[attacker].captures += 1
+	w.routes_dirty = true
+	Agents.on_node_lost(w, node.id, old)
+	if node.type == Defs.NodeType.CORE and w.winner < 0:
+		w.winner = attacker
+		w.finished_tick = w.tick

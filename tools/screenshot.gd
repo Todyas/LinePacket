@@ -56,6 +56,18 @@ func _setup_scenario() -> void:
 			w.submit(Command.queue_task(0, 0, 1, Defs.TaskKind.SET_KEYS, 1))
 			_main.input_ctl.selected_node = 2
 			_main.input_ctl.selected_agent = 1
+		"war":
+			# Витрина шкал атаки: заражение, подбор пароля, лежащая машина, экран итогов.
+			for i in [1, 2, 3]:
+				w.nodes[i].owner = 0
+				w.nodes[i].control = Defs.CONTROL_MAX
+			w.nodes[2].infect[1] = 62000
+			w.nodes[3].brute[1] = 45000
+			w.nodes[3].infect[1] = 20000
+			w.nodes[1].down = true
+			_main.input_ctl.selected_node = 2
+			w.winner = 1
+			w.finished_tick = 20 * 342
 		_:
 			w.submit(Command.start_flow(0, 0, 0, 22, Defs.PacketType.FLOOD, 12))
 			w.submit(Command.start_flow(0, 0, 1, 17, Defs.PacketType.FLOOD, 20))

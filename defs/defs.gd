@@ -72,7 +72,7 @@ const PACKET_SIZE: Dictionary = {
 
 ## Какие типы игрок может пускать потоком (остальные идут автоматически).
 ## Список растёт вместе со спринтами по мере появления механик.
-const PLAYER_FLOW_TYPES: Array = [PacketType.FLOOD, PacketType.INIT]
+const PLAYER_FLOW_TYPES: Array = [PacketType.FLOOD, PacketType.INIT, PacketType.PAYLOAD]
 
 ## --- Сеть (S1) ---
 
@@ -167,7 +167,7 @@ const SOFT_DEFS: Dictionary = {
 }
 
 ## ПО, доступное игроку в текущем спринте (растёт вместе с механиками, которые ПО обслуживает).
-const PLAYER_SOFT: Array = [SoftType.FIREWALL, SoftType.STORAGE, SoftType.RELAY]
+const PLAYER_SOFT: Array = [SoftType.FIREWALL, SoftType.ANTIVIRUS, SoftType.STORAGE, SoftType.RELAY]
 
 ## Слоты ПО на узле.
 const SOFT_SLOTS: Dictionary = {
@@ -193,13 +193,17 @@ const AGENT_QUEUE_MAX: int = 3
 ## Агент, которого выкинули или потеряли в пути, появляется на ядре через 20 секунд.
 const AGENT_RETURN_TICKS: int = 400
 
-enum TaskKind { MOVE, CHANGE_PASSWORD, SET_KEYS, INSTALL_SOFT }
+enum TaskKind { MOVE, CHANGE_PASSWORD, SET_KEYS, INSTALL_SOFT, CLEAN_VIRUS, STEAL_KEY, DRAIN_BUFFER, ENTRENCH }
 
 const TASK_NAMES: Dictionary = {
 	TaskKind.MOVE: "Перейти",
 	TaskKind.CHANGE_PASSWORD: "Сменить пароль",
 	TaskKind.SET_KEYS: "Ключи",
 	TaskKind.INSTALL_SOFT: "Поставить ПО",
+	TaskKind.CLEAN_VIRUS: "Вычистить вирус",
+	TaskKind.STEAL_KEY: "Украсть ключ",
+	TaskKind.DRAIN_BUFFER: "Выкачать байты",
+	TaskKind.ENTRENCH: "Закрепиться",
 }
 
 ## Время (с) и цена (байты) задач без аргумента. Установка ПО берёт числа из SOFT_DEFS.
@@ -207,4 +211,39 @@ const TASK_DEFS: Dictionary = {
 	TaskKind.MOVE: {"time_s": 0, "cost": 0},
 	TaskKind.CHANGE_PASSWORD: {"time_s": 4, "cost": 5},
 	TaskKind.SET_KEYS: {"time_s": 10, "cost": 15},
+	TaskKind.STEAL_KEY: {"time_s": 12, "cost": 0},
+	TaskKind.DRAIN_BUFFER: {"time_s": 0, "cost": 0},   # идёт, пока стоит агент и есть что качать
+	TaskKind.ENTRENCH: {"time_s": 6, "cost": 10},
+	TaskKind.CLEAN_VIRUS: {"time_s": 6, "cost": 10},   # +до 14 с по степени заражения
 }
+
+## --- Атака и захват чужих машин (S4) ---
+
+## Нагрузка CPU (%), при которой машина «ложится», и при которой поднимается обратно.
+const LYING_ON_PCT: int = 100
+const LYING_OFF_PCT: int = 80
+
+## PAYLOAD: цена одного пакета в байтах и прирост шкалы заражения (тысячные доли пункта, 100000 = 100%).
+const PAYLOAD_COST_BYTES: int = 1
+const INFECT_MAX: int = 100000
+const INFECT_GAIN: int = 4000
+## Шкала заражения тает сама; антивирус сбивает её быстрее и режет прирост.
+const INFECT_DECAY_PER_S: int = 1000
+const ANTIVIRUS_GAIN_PERCENT: int = 40
+const ANTIVIRUS_DECAY_PER_S: int = 6000
+## Контроль машины сразу после смены владельца.
+const TAKEOVER_CONTROL: int = 50000
+
+## Подбор пароля потоком INIT: прирост шкалы за пакет по силе защиты (ключи не подбираются).
+const BRUTE_MAX: int = 100000
+const BRUTE_GAIN: Dictionary = {
+	AccessMode.PASSWORD_WEAK: 10000,
+	AccessMode.PASSWORD_STRONG: 1000,
+	AccessMode.KEYS: 0,
+}
+const BRUTE_DECAY_PER_S: int = 2000
+
+## «Выкачать байты»: сколько байт в секунду агент забирает из буфера чужой машины.
+const DRAIN_PER_S: int = 5
+## «Вычистить вирус»: к базовым 6 с добавляется до этого числа секунд по степени заражения.
+const CLEAN_EXTRA_S: int = 14

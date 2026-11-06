@@ -15,6 +15,7 @@ var hud: Hud
 var card: NodeCard
 var agent_panel: AgentPanel
 var ring: RingMenu
+var end_screen: EndScreen
 var local_player: int = 0
 var _acc: float = 0.0
 var _step_ms_avg: float = 0.0
@@ -67,6 +68,9 @@ func _ready() -> void:
 	hud.player = local_player
 	hud.input_ctl = input_ctl
 	add_child(hud)
+	end_screen = EndScreen.new()
+	end_screen.world = world
+	add_child(end_screen)
 	overlay = DebugOverlay.new()
 	overlay.world = world
 	add_child(overlay)
@@ -90,6 +94,10 @@ func _process(delta: float) -> void:
 	var frac: float = clampf(_acc / step_s, 0.0, 1.0)
 	packets.refresh(world, frac)
 	drops_fx.ingest(world)
+	local_player = input_ctl.local_player
+	hud.player = local_player
+	agent_panel.player = local_player
+	end_screen.local_player = local_player
 	links_view.hover_flow = input_ctl.hover_flow
 	nodes_view.selected_node = input_ctl.selected_node
 	nodes_view.agent_player = local_player

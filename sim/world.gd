@@ -30,6 +30,8 @@ var recent_drops: Array = []
 
 var _pending: Dictionary = {}               # tick -> Array[Command]
 var applied_log: Array[Command] = []        # применённые команды по порядку (для реплея)
+var winner: int = -1                        # игрок, захвативший ядро; -1 — матч идёт
+var finished_tick: int = -1
 var rejected_count: int = 0                 # отвергнутые команды (невалидные)
 
 func _init(seed_val: int = 1) -> void:
@@ -46,6 +48,8 @@ func submit(cmd: Command) -> void:
 	(_pending[c.tick] as Array).append(c)
 
 func step() -> void:
+	if winner >= 0:
+		return   # матч окончен, мир заморожен
 	if _pending.has(tick):
 		var list: Array = _pending[tick]
 		for c in list:
@@ -175,6 +179,8 @@ func state_hash() -> int:
 	h.add(tick)
 	h.add(rng.state)
 	h.add(next_flow_id)
+	h.add(winner)
+	h.add(finished_tick)
 	h.add(nodes.size())
 	for n in nodes:
 		n.hash_into(h)

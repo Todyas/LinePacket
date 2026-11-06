@@ -38,3 +38,16 @@ static func build_agents(seed_value: int) -> World:
 	w.submit(Command.start_flow(1, 100, 10, 12, Defs.PacketType.INIT, 20))
 	w.submit(Command.queue_task(1, 120, 0, Defs.TaskKind.SET_KEYS, 10))
 	return w
+
+## Осада: INIT, PAYLOAD, флуд, агенты по обе стороны — для проверки детерминизма атаки.
+static func build_siege(seed_value: int) -> World:
+	var w: World = TestMaps.siege(seed_value)
+	w.players[0].bank = 200
+	w.players[1].bank = 300
+	w.submit(Command.start_flow(1, 5, 3, 2, Defs.PacketType.INIT, 20))
+	w.submit(Command.start_flow(1, 100, 4, 2, Defs.PacketType.PAYLOAD, 14))
+	w.submit(Command.start_flow(1, 200, 3, 2, Defs.PacketType.FLOOD, 12))
+	w.submit(Command.queue_task(0, 10, 0, Defs.TaskKind.INSTALL_SOFT, 2, Defs.SoftType.ANTIVIRUS))
+	w.submit(Command.queue_task(0, 300, 1, Defs.TaskKind.SET_KEYS, 2))
+	w.submit(Command.queue_task(1, 400, 0, Defs.TaskKind.STEAL_KEY, 2))
+	return w

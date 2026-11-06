@@ -22,6 +22,7 @@ var ring_target: int = -1
 const MODE_KEYS: Dictionary = {
 	KEY_F: Defs.PacketType.FLOOD,
 	KEY_I: Defs.PacketType.INIT,
+	KEY_P: Defs.PacketType.PAYLOAD,
 	KEY_S: Defs.PacketType.SCAN,
 }
 
@@ -105,6 +106,8 @@ func _on_key(k: InputEventKey) -> void:
 			flow_type = t
 	elif k.keycode >= KEY_1 and k.keycode <= KEY_3:
 		selected_agent = k.keycode - KEY_1
+	elif k.keycode == KEY_F2 and OS.is_debug_build():
+		switch_side()
 	elif k.keycode == KEY_ESCAPE:
 		if ring != null and ring.is_open:
 			ring.close()
@@ -114,6 +117,17 @@ func _on_key(k: InputEventKey) -> void:
 		if hover_flow >= 0:
 			submit(Command.stop_flow(local_player, world.tick, hover_flow))
 			hover_flow = -1
+
+## Отладка (только в debug-сборке): переключиться на другую сторону, чтобы играть за обоих.
+func switch_side() -> void:
+	local_player = (local_player + 1) % world.players.size()
+	selected_node = -1
+	selected_agent = 0
+	drag_from = -1
+	hover_flow = -1
+	if ring != null:
+		ring.close()
+	queue_redraw()
 
 ## Выбран пункт кольцевого меню.
 func apply_item(item: Dictionary) -> void:

@@ -30,7 +30,7 @@ func _process(_delta: float) -> void:
 	if selected_node >= 0:
 		label.text = text_for(world, selected_node)
 
-static func text_for(w: World, node_id: int) -> String:
+static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
 	var n: NodeState = w.nodes[node_id]
 	var lines: Array[String] = []
 	lines.append("%s — %s" % [Names.node_label(n), Names.node_type(n.type)])
@@ -41,6 +41,8 @@ static func text_for(w: World, node_id: int) -> String:
 		return "\n".join(lines)
 	if n.owner >= 0:
 		lines.append("Контроль: %d%%" % (n.control * 100 / Defs.CONTROL_MAX))
+	if n.down:
+		lines.append("ЛЕЖИТ: перегрузка CPU, не шлёт пакеты, ПО отключено")
 	lines.append("CPU: %d%% (свободно %d/с)" % [n.cpu_load_pct(), n.cpu_per_s])
 	if n.owner >= 0:
 		lines.append("Доступ: %s" % Names.access_mode(n.access_mode, n.key_version))
@@ -53,6 +55,13 @@ static func text_for(w: World, node_id: int) -> String:
 		for i in free:
 			slots.append("[пусто]")
 		lines.append("ПО: %s" % " ".join(slots))
+		for p in Defs.MAX_PLAYERS:
+			if p == n.owner or (viewer >= 0 and p != viewer and n.owner != viewer):
+				continue
+			if n.infect[p] > 0:
+				lines.append("Заражение (%s): %d%%" % [Names.owner_name(p), n.infect[p] * 100 / Defs.INFECT_MAX])
+			if n.brute[p] > 0:
+				lines.append("Подбор пароля (%s): %d%%" % [Names.owner_name(p), n.brute[p] * 100 / Defs.BRUTE_MAX])
 		var lim: int = Economy.buffer_limit(n)
 		if lim > 0:
 			lines.append("Буфер: %d / %d" % [n.buffer, lim])

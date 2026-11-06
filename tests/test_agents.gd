@@ -94,7 +94,7 @@ func test_queue_limit_and_ownership_validation() -> void:
 	check_eq(w.rejected_count, 1)
 	var w2: World = TestMaps.chain()
 	w2.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.MOVE, 2))     # нейтрал
-	w2.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.MOVE, 4))     # чужое ядро
+	w2.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.STEAL_KEY, 1))  # красть ключ у себя нельзя
 	w2.submit(Command.queue_task(0, 0, 0, Defs.TaskKind.INSTALL_SOFT, 1, Defs.SoftType.SNIFFER))   # ПО пока недоступно
 	w2.submit(Command.queue_task(0, 0, 7, Defs.TaskKind.MOVE, 1))     # нет такого агента
 	w2.step()

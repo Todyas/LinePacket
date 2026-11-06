@@ -24,11 +24,28 @@ static func items_for(w: World, player: int, selected_node: int, target: int) ->
 				continue
 			var sp: Array = Agents.task_params(Defs.TaskKind.INSTALL_SOFT, s)
 			items.append({"label": "%s (%d Б, %d с)" % [Defs.SOFT_NAMES[s], sp[1], int(sp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.INSTALL_SOFT, "arg": s})
+		if t.max_infect() > 0:
+			var cp: Array = Agents.task_params(Defs.TaskKind.CLEAN_VIRUS, 0, t)
+			items.append({"label": "Вычистить вирус (%d Б, %d с)" % [cp[1], (int(cp[0]) + Defs.TICK_HZ - 1) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.CLEAN_VIRUS, "arg": 0})
+		if t.prev_owner >= 0:
+			var ep: Array = Agents.task_params(Defs.TaskKind.ENTRENCH, 0)
+			items.append({"label": "Закрепиться (%d Б, %d с)" % [ep[1], int(ep[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.ENTRENCH, "arg": 0})
+	elif t.owner >= 0 and t.type != Defs.NodeType.SWITCH:
+		items.append({"label": "Агент сюда", "kind": "task", "task": Defs.TaskKind.MOVE, "arg": 0})
+		items.append({"label": "Украсть ключ (%d с)" % (int(Agents.task_params(Defs.TaskKind.STEAL_KEY, 0)[0]) / Defs.TICK_HZ), "kind": "task", "task": Defs.TaskKind.STEAL_KEY, "arg": 0})
+		items.append({"label": "Выкачать буфер", "kind": "task", "task": Defs.TaskKind.DRAIN_BUFFER, "arg": 0})
+		if t.prev_owner == player:
+			var rp: Array = Agents.task_params(Defs.TaskKind.ENTRENCH, 0)
+			items.append({"label": "Вернуть машину (%d Б, %d с)" % [rp[1], int(rp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.ENTRENCH, "arg": 0})
 	if selected_node >= 0 and selected_node != target and w.nodes[selected_node].owner == player:
 		if t.owner == Defs.NEUTRAL and Defs.INIT_NEEDED.has(t.type) and Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.INIT):
 			items.append({"label": "Захватить (INIT)", "kind": "flow", "flow_type": Defs.PacketType.INIT})
 		if t.owner != player and t.type != Defs.NodeType.SWITCH and Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.FLOOD):
 			items.append({"label": "Флуд (FLOOD)", "kind": "flow", "flow_type": Defs.PacketType.FLOOD})
+		if t.owner >= 0 and t.owner != player and t.type != Defs.NodeType.SWITCH:
+			items.append({"label": "Вирус (PAYLOAD)", "kind": "flow", "flow_type": Defs.PacketType.PAYLOAD})
+			if t.access_mode != Defs.AccessMode.KEYS and (t.access_mask & (1 << player)) == 0:
+				items.append({"label": "Подбор пароля (INIT)", "kind": "flow", "flow_type": Defs.PacketType.INIT})
 	return items
 
 func open(screen_pos: Vector2, items: Array[Dictionary]) -> void:

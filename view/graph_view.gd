@@ -103,6 +103,12 @@ func _draw_node(n: NodeState, font: Font) -> void:
 			if n.capture[p] > 0:
 				var frac: float = clampf(float(n.capture[p]) / float(needed), 0.0, 1.0)
 				draw_arc(c, NODE_RADIUS + 12.0 + 4.0 * p, -PI / 2.0, -PI / 2.0 + TAU * frac, 40, Palette.of_owner(p), 4.0, true)
+	if n.owner >= 0:
+		_draw_attack_meters(n, c)
+	if n.down:
+		var d: float = NODE_RADIUS * 0.7
+		draw_line(c + Vector2(-d, -d), c + Vector2(d, d), Palette.OVERLOAD, 3.0, true)
+		draw_line(c + Vector2(-d, d), c + Vector2(d, -d), Palette.OVERLOAD, 3.0, true)
 	if n.id == selected_node:
 		draw_arc(c, NODE_RADIUS + 8.0, 0.0, TAU, 48, Color(1, 1, 1, 0.85), 2.0, true)
 	_draw_agent_marks(n, c, font)
@@ -110,6 +116,18 @@ func _draw_node(n: NodeState, font: Font) -> void:
 	draw_string(font, c + Vector2(-20, NODE_RADIUS + 22), label, HORIZONTAL_ALIGNMENT_CENTER, 40, 14, Palette.NEUTRAL)
 	if n.owner >= 0 and n.buffer > 0:
 		draw_string(font, c + Vector2(NODE_RADIUS + 6, -NODE_RADIUS), "%d" % n.buffer, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1.0, 0.85, 0.3))
+
+## Шкалы заражения (толстая дуга) и подбора пароля (тонкая) цветом атакующего.
+func _draw_attack_meters(n: NodeState, c: Vector2) -> void:
+	for p in Defs.MAX_PLAYERS:
+		if p == n.owner:
+			continue
+		if n.infect[p] > 0:
+			var f: float = clampf(float(n.infect[p]) / float(Defs.INFECT_MAX), 0.0, 1.0)
+			draw_arc(c, NODE_RADIUS + 6.0, -PI / 2.0, -PI / 2.0 + TAU * f, 40, Palette.of_owner(p), 4.0, true)
+		if n.brute[p] > 0:
+			var g: float = clampf(float(n.brute[p]) / float(Defs.BRUTE_MAX), 0.0, 1.0)
+			draw_arc(c, NODE_RADIUS + 13.0, -PI / 2.0, -PI / 2.0 + TAU * g, 40, Color(Palette.of_owner(p), 0.7), 2.0, true)
 
 ## Заливка снизу вверх пропорционально контролю.
 func _draw_control_fill(pts: PackedVector2Array, c: Vector2, control: int, col: Color) -> void:

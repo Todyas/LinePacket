@@ -19,6 +19,14 @@ static func step(w: World) -> void:
 	var slot: int = w.tick % Defs.LOAD_WINDOW
 	for n in w.nodes:
 		n.cpu_hist[slot] = n.cpu_used_tick
+		if n.owner >= 0 and n.type != Defs.NodeType.SWITCH:
+			var load_pct: int = n.cpu_load_pct()
+			if not n.down and load_pct >= Defs.LYING_ON_PCT:
+				n.down = true
+			elif n.down and load_pct < Defs.LYING_OFF_PCT:
+				n.down = false
+		elif n.down:
+			n.down = false
 	_trim_drops(w)
 
 ## Создать пакет на узле src и поставить его в очередь порта. false — пакет потерян сразу.
@@ -100,7 +108,7 @@ static func _arrive(w: World, node_id: int, idx: int, via_link: int, via_dir: in
 
 ## Файрвол узла: чужие FLOOD и PAYLOAD проходят не чаще лимита; проверка стоит CPU.
 static func _firewall_blocks(w: World, n: NodeState, idx: int) -> bool:
-	if n.owner < 0 or not n.has_soft(Defs.SoftType.FIREWALL):
+	if n.owner < 0 or not n.soft_active(Defs.SoftType.FIREWALL):
 		return false
 	var pool: PacketPool = w.pool
 	if pool.owner[idx] == n.owner:
@@ -124,13 +132,21 @@ static func _emit_flows(w: World) -> void:
 			# Источник потерян — поток прекращается.
 			w.flows.remove_at(i)
 			continue
-		var pct: int = Defs.RELAY_FLOW_PERCENT if src.has_soft(Defs.SoftType.RELAY) else 100
+		if src.down:
+			i += 1
+			continue    # машина лежит: потоки не идут
+		var pct: int = Defs.RELAY_FLOW_PERCENT if src.soft_active(Defs.SoftType.RELAY) else 100
 		f.acc += f.rate * pct / 100
 		while f.acc >= Defs.TICK_HZ:
 			f.acc -= Defs.TICK_HZ
+			var pl: PlayerState = w.players[f.owner]
+			if f.ptype == Defs.PacketType.PAYLOAD and pl.bank < Defs.PAYLOAD_COST_BYTES:
+				continue    # PAYLOAD стоит байты: без них пакет не рождается
 			if not src.spend_cpu(Defs.CPU_COST_EMIT):
 				w.drops[World.DROP_CPU] += 1
 				continue
+			if f.ptype == Defs.PacketType.PAYLOAD:
+				pl.bank -= Defs.PAYLOAD_COST_BYTES
 			inject(w, f.src, f.dst, f.ptype, f.owner, f.id)
 		i += 1
 

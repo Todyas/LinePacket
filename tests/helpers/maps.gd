@@ -103,3 +103,29 @@ static func chain(seed_value: int = 1) -> World:
 		],
 		"links": [link(0, 1), link(1, 2), link(0, 3), link(2, 4, "optic")],
 	}, seed_value)
+
+## Осада: у P0 ядро, шлюз и машина (узел 2); у P1 ядро (3) и машина (4), оба подключены к цели оптикой.
+static func siege(seed_value: int = 1) -> World:
+	return build({
+		"name": "siege", "players": 2,
+		"nodes": [
+			node(0, "core", 0, 0, 0),
+			node(1, "gateway", 200, 0, 0),
+			node(2, "machine", 400, 0, 0),
+			node(3, "core", 400, 600, 1),
+			node(4, "machine", 600, 300, 1),
+			node(5, "gateway", 800, 600, 1),
+		],
+		"links": [link(0, 1, "optic"), link(1, 2, "optic"), link(3, 2, "optic"), link(4, 2, "optic"), link(3, 4, "optic"), link(4, 5, "optic"), link(3, 5, "optic")],
+	}, seed_value)
+
+## Дуэль двух ядер напрямую: захват ядра завершает матч.
+static func rush(seed_value: int = 1) -> World:
+	return build({
+		"name": "rush", "players": 2,
+		"nodes": [
+			node(0, "core", 0, 0, 0),
+			node(1, "core", 300, 0, 1),
+		],
+		"links": [link(0, 1, "optic")],
+	}, seed_value)
