@@ -3,6 +3,7 @@ extends RefCounted
 ## Один тик сети: прибытия → эмиссия потоков → вход в каналы. Порядок обхода всегда по id.
 
 static func step(w: World) -> void:
+	Knowledge.update(w)
 	if w.routes_dirty or w.tick % Defs.ROUTE_RECALC_TICKS == 0:
 		Routing.compute(w)
 		Economy.refresh_targets(w)
@@ -23,6 +24,7 @@ static func step(w: World) -> void:
 			var load_pct: int = n.cpu_load_pct()
 			if not n.down and load_pct >= Defs.LYING_ON_PCT:
 				n.down = true
+				Knowledge.log_event(w, n.owner, Knowledge.EventKind.NODE_DOWN, n.id)
 			elif n.down and load_pct < Defs.LYING_OFF_PCT:
 				n.down = false
 		elif n.down:
@@ -38,8 +40,9 @@ static func _enqueue_out(w: World, node_id: int, idx: int) -> bool:
 	var pool: PacketPool = w.pool
 	var dst: int = pool.dst[idx]
 	var lid: int = -1
-	if w.routes.size() > dst:
-		lid = w.routes[dst][node_id]
+	var table: Array[PackedInt32Array] = w.route_table(pool.owner[idx])
+	if table.size() > dst:
+		lid = table[dst][node_id]
 	if lid < 0:
 		_drop(w, idx, -1, 0, World.DROP_NOROUTE)
 		return false
@@ -54,10 +57,11 @@ static func _enqueue_out(w: World, node_id: int, idx: int) -> bool:
 	return true
 
 ## Есть ли у узла маршрут к цели и место в очереди порта под пакет такого размера.
-static func has_room(w: World, node_id: int, dst: int, size: int) -> bool:
-	if w.routes.size() <= dst:
+static func has_room(w: World, node_id: int, dst: int, size: int, owner: int = -1) -> bool:
+	var table: Array[PackedInt32Array] = w.route_table(owner)
+	if table.size() <= dst:
 		return false
-	var lid: int = w.routes[dst][node_id]
+	var lid: int = table[dst][node_id]
 	if lid < 0:
 		return false
 	var l: LinkState = w.links[lid]
@@ -89,6 +93,7 @@ static func _process_arrivals(w: World) -> void:
 static func _arrive(w: World, node_id: int, idx: int, via_link: int, via_dir: int) -> void:
 	var pool: PacketPool = w.pool
 	var n: NodeState = w.nodes[node_id]
+	Knowledge.on_hostile_packet(w, n, idx, via_link)
 	if _firewall_blocks(w, n, idx):
 		_drop(w, idx, via_link, via_dir, World.DROP_FIREWALL)
 		return

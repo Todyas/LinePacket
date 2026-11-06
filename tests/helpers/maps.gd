@@ -129,3 +129,19 @@ static func rush(seed_value: int = 1) -> World:
 		],
 		"links": [link(0, 1, "optic")],
 	}, seed_value)
+
+## Разведка: цепочка 0–1–2–3 и обход 0–4–5–3. Ядро P0 — узел 0, ядро P1 — узел 3, остальное нейтрально.
+## Линк 2–3 не виден P0 (ни один его конец не наблюдается).
+static func scout(seed_value: int = 1) -> World:
+	return build({
+		"name": "scout", "players": 2,
+		"nodes": [
+			node(0, "core", 0, 0, 0),
+			node(1, "machine", 300, 0),
+			node(2, "machine", 600, 0),
+			node(3, "core", 900, 0, 1),
+			node(4, "machine", 300, 300),
+			node(5, "machine", 600, 300),
+		],
+		"links": [link(0, 1), link(1, 2), link(2, 3), link(0, 4), link(4, 5), link(5, 3)],
+	}, seed_value)

@@ -15,5 +15,8 @@ static func deliver(w: World, node: NodeState, idx: int) -> void:
 			Agents.on_arrived(w, node, owner, w.pool.flow[idx])
 		Defs.PacketType.PAYLOAD:
 			Economy.on_payload(w, node, owner)
+		Defs.PacketType.SCAN:
+			Knowledge.scan(w, owner, node.id)
+			w.remove_flow(w.pool.flow[idx])   # один поток — один скан
 		Defs.PacketType.FLOOD:
 			pass   # эффект флуда — плата CPU цели за прибытие, уже списана

@@ -13,6 +13,9 @@ static func items_for(w: World, player: int, selected_node: int, target: int) ->
 	if target < 0:
 		return items
 	var t: NodeState = w.nodes[target]
+	# Всё, что не своё, игрок знает только по снимку: меню строится по знаниям, а не по истине.
+	var k_owner: int = Knowledge.owner_of(w, player, target)
+	var sn: NodeSnap = Knowledge.snap(w, player, target)
 	if t.owner == player and t.type != Defs.NodeType.SWITCH:
 		items.append({"label": "Агент сюда", "kind": "task", "task": Defs.TaskKind.MOVE, "arg": 0})
 		var pw: Array = Agents.task_params(Defs.TaskKind.CHANGE_PASSWORD, 0)
@@ -30,22 +33,25 @@ static func items_for(w: World, player: int, selected_node: int, target: int) ->
 		if t.prev_owner >= 0:
 			var ep: Array = Agents.task_params(Defs.TaskKind.ENTRENCH, 0)
 			items.append({"label": "Закрепиться (%d Б, %d с)" % [ep[1], int(ep[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.ENTRENCH, "arg": 0})
-	elif t.owner >= 0 and t.type != Defs.NodeType.SWITCH:
+	elif k_owner >= 0 and t.type != Defs.NodeType.SWITCH:
 		items.append({"label": "Агент сюда", "kind": "task", "task": Defs.TaskKind.MOVE, "arg": 0})
 		items.append({"label": "Украсть ключ (%d с)" % (int(Agents.task_params(Defs.TaskKind.STEAL_KEY, 0)[0]) / Defs.TICK_HZ), "kind": "task", "task": Defs.TaskKind.STEAL_KEY, "arg": 0})
 		items.append({"label": "Выкачать буфер", "kind": "task", "task": Defs.TaskKind.DRAIN_BUFFER, "arg": 0})
-		if t.prev_owner == player:
+		if t.prev_owner == player and t.owner != player:
 			var rp: Array = Agents.task_params(Defs.TaskKind.ENTRENCH, 0)
 			items.append({"label": "Вернуть машину (%d Б, %d с)" % [rp[1], int(rp[0]) / Defs.TICK_HZ], "kind": "task", "task": Defs.TaskKind.ENTRENCH, "arg": 0})
 	if selected_node >= 0 and selected_node != target and w.nodes[selected_node].owner == player:
-		if t.owner == Defs.NEUTRAL and Defs.INIT_NEEDED.has(t.type) and Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.INIT):
+		if k_owner == Defs.NEUTRAL and Defs.INIT_NEEDED.has(t.type) and Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.INIT):
 			items.append({"label": "Захватить (INIT)", "kind": "flow", "flow_type": Defs.PacketType.INIT})
-		if t.owner != player and t.type != Defs.NodeType.SWITCH and Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.FLOOD):
+		if k_owner != Knowledge.UNKNOWN_OWNER and k_owner != player and t.type != Defs.NodeType.SWITCH and Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.FLOOD):
 			items.append({"label": "Флуд (FLOOD)", "kind": "flow", "flow_type": Defs.PacketType.FLOOD})
-		if t.owner >= 0 and t.owner != player and t.type != Defs.NodeType.SWITCH:
+		if k_owner >= 0 and k_owner != player and t.type != Defs.NodeType.SWITCH:
 			items.append({"label": "Вирус (PAYLOAD)", "kind": "flow", "flow_type": Defs.PacketType.PAYLOAD})
-			if t.access_mode != Defs.AccessMode.KEYS and (t.access_mask & (1 << player)) == 0:
+			if sn != null and sn.access_mode != Defs.AccessMode.KEYS and not sn.my_access:
 				items.append({"label": "Подбор пароля (INIT)", "kind": "flow", "flow_type": Defs.PacketType.INIT})
+		var hp: int = Knowledge.hops(w, selected_node, target)
+		if k_owner != player and hp >= 1 and hp <= Defs.SCAN_MAX_HOPS and Defs.PLAYER_FLOW_TYPES.has(Defs.PacketType.SCAN):
+			items.append({"label": "Скан (SCAN, до %d хопов)" % Defs.SCAN_MAX_HOPS, "kind": "flow", "flow_type": Defs.PacketType.SCAN})
 	return items
 
 func open(screen_pos: Vector2, items: Array[Dictionary]) -> void:

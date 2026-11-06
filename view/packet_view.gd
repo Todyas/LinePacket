@@ -70,7 +70,8 @@ static func _make_texture(shape: String) -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 ## Обновить буферы. frac — доля тика (0..1) для интерполяции между тиками.
-func refresh(w: World, frac: float) -> void:
+## viewer >= 0: рисуются только пакеты на линках рядом с наблюдаемыми узлами этого игрока.
+func refresh(w: World, frac: float, viewer: int = -1) -> void:
 	if _mms.is_empty():
 		return
 	var need: Array[int] = [0, 0, 0]
@@ -79,6 +80,8 @@ func refresh(w: World, frac: float) -> void:
 	counts = [0, 0, 0]
 	# Первый проход: сколько нужно мест по категориям.
 	for l in w.links:
+		if viewer >= 0 and not Knowledge.link_visible(w, viewer, l.id):
+			continue
 		for d in 2:
 			var q: IntQueue = l.chan[d]
 			for i in q.size():
@@ -91,6 +94,8 @@ func refresh(w: World, frac: float) -> void:
 			_resize(cat, cap)
 	# Второй проход: запись.
 	for l in w.links:
+		if viewer >= 0 and not Knowledge.link_visible(w, viewer, l.id):
+			continue
 		var na: NodeState = w.nodes[l.a]
 		var nb: NodeState = w.nodes[l.b]
 		var vx: float = float(nb.x - na.x)

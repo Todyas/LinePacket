@@ -148,6 +148,7 @@ static func load_dict(d: Dictionary, seed_value: int) -> Dictionary:
 	# Связность графа.
 	if not _connected(w):
 		return _fail("граф карты несвязный")
+	Knowledge.update(w)
 	Routing.compute(w)
 	Economy.refresh_targets(w)
 	return {"world": w, "error": ""}

@@ -129,7 +129,7 @@ func test_routes_recomputed_every_second() -> void:
 
 func test_unreachable_destination_drops() -> void:
 	var w: World = TestMaps.pair(200)
-	w.routes[1][0] = -1
+	w.proutes[0][1][0] = -1
 	check(not Network.inject(w, 0, 1, Defs.PacketType.FLOOD, 0, 0))
 	check_eq(w.drops[World.DROP_NOROUTE], 1)
 

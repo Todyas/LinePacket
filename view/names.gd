@@ -37,7 +37,7 @@ static func access_mode(m: int, key_version: int) -> String:
 		Defs.AccessMode.PASSWORD_STRONG:
 			return "сильный пароль"
 		Defs.AccessMode.KEYS:
-			return "SSH-ключи (v%d)" % key_version
+			return "SSH-ключи (v%d)" % key_version if key_version > 0 else "SSH-ключи"
 	return "?"
 
 static func access_list(mask: int) -> String:

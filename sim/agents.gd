@@ -101,7 +101,7 @@ static func _advance(w: World, a: AgentState) -> void:
 				a.queue.pop_front()   # узел стал нейтральным — задача пропадает
 				continue
 			var src: NodeState = w.nodes[a.node]
-			if not Network.has_room(w, a.node, target, int(Defs.PACKET_SIZE[Defs.PacketType.AGENT])):
+			if not Network.has_room(w, a.node, target, int(Defs.PACKET_SIZE[Defs.PacketType.AGENT]), a.owner):
 				return
 			if not src.spend_cpu(Defs.CPU_COST_EMIT):
 				return

@@ -72,7 +72,7 @@ const PACKET_SIZE: Dictionary = {
 
 ## Какие типы игрок может пускать потоком (остальные идут автоматически).
 ## Список растёт вместе со спринтами по мере появления механик.
-const PLAYER_FLOW_TYPES: Array = [PacketType.FLOOD, PacketType.INIT, PacketType.PAYLOAD]
+const PLAYER_FLOW_TYPES: Array = [PacketType.FLOOD, PacketType.INIT, PacketType.PAYLOAD, PacketType.SCAN]
 
 ## --- Сеть (S1) ---
 
@@ -167,7 +167,7 @@ const SOFT_DEFS: Dictionary = {
 }
 
 ## ПО, доступное игроку в текущем спринте (растёт вместе с механиками, которые ПО обслуживает).
-const PLAYER_SOFT: Array = [SoftType.FIREWALL, SoftType.ANTIVIRUS, SoftType.STORAGE, SoftType.RELAY]
+const PLAYER_SOFT: Array = [SoftType.FIREWALL, SoftType.ANTIVIRUS, SoftType.IDS, SoftType.STORAGE, SoftType.RELAY]
 
 ## Слоты ПО на узле.
 const SOFT_SLOTS: Dictionary = {
@@ -247,3 +247,14 @@ const BRUTE_DECAY_PER_S: int = 2000
 const DRAIN_PER_S: int = 5
 ## «Вычистить вирус»: к базовым 6 с добавляется до этого числа секунд по степени заражения.
 const CLEAN_EXTRA_S: int = 14
+
+## --- Туман и разведка (S5) ---
+
+## SCAN: узел-цель не дальше стольких линков от узла, откуда идёт скан. Поток сам заканчивается, когда скан дошёл.
+const SCAN_MAX_HOPS: int = 3
+const SCAN_FLOW_RATE: int = 4
+## IDS пишет в лог чужие пакеты этих типов; от одного атакующего на один узел — не чаще раза в несколько секунд.
+const IDS_WATCHED: Array = [PacketType.FLOOD, PacketType.PAYLOAD, PacketType.INIT, PacketType.SCAN]
+const IDS_COOLDOWN_TICKS: int = 60
+## Данные снимка бледнеют за столько секунд (только вид).
+const SNAPSHOT_FADE_S: int = 90

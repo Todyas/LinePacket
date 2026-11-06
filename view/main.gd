@@ -16,6 +16,9 @@ var card: NodeCard
 var agent_panel: AgentPanel
 var ring: RingMenu
 var end_screen: EndScreen
+var feed: EventFeed
+## Туман войны; в debug-сборке клавиша F4 включает всеведущий взгляд для отладки.
+var fog_enabled: bool = true
 var local_player: int = 0
 var _acc: float = 0.0
 var _step_ms_avg: float = 0.0
@@ -68,12 +71,22 @@ func _ready() -> void:
 	hud.player = local_player
 	hud.input_ctl = input_ctl
 	add_child(hud)
+	feed = EventFeed.new()
+	feed.world = world
+	feed.player = local_player
+	feed.focus_node.connect(func(nid: int) -> void: camera.position = Vector2(world.nodes[nid].x, world.nodes[nid].y))
+	add_child(feed)
 	end_screen = EndScreen.new()
 	end_screen.world = world
 	add_child(end_screen)
 	overlay = DebugOverlay.new()
 	overlay.world = world
 	add_child(overlay)
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	var k := event as InputEventKey
+	if k != null and k.pressed and not k.echo and k.keycode == KEY_F4 and OS.is_debug_build():
+		fog_enabled = not fog_enabled
 
 func _process(delta: float) -> void:
 	if world == null:
@@ -92,9 +105,14 @@ func _process(delta: float) -> void:
 	if guard == 5:
 		_acc = 0.0
 	var frac: float = clampf(_acc / step_s, 0.0, 1.0)
-	packets.refresh(world, frac)
+	packets.refresh(world, frac, local_player if fog_enabled else -1)
 	drops_fx.ingest(world)
 	local_player = input_ctl.local_player
+	var viewer: int = local_player if fog_enabled else -1
+	feed.player = local_player
+	links_view.viewer = viewer
+	nodes_view.viewer = viewer
+	card.viewer = viewer
 	hud.player = local_player
 	agent_panel.player = local_player
 	end_screen.local_player = local_player

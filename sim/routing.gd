@@ -5,21 +5,33 @@ extends RefCounted
 
 const INF: int = 1 << 40
 
-static func link_cost(l: LinkState, d: int) -> int:
-	return l.latency * Defs.ROUTE_LATENCY_WEIGHT + l.load_pct(d) * Defs.ROUTE_LOAD_PENALTY
+## seen=false: загрузка линка неизвестна (игрок её не видит), цена — одна задержка.
+static func link_cost(l: LinkState, d: int, seen: bool = true) -> int:
+	var cost: int = l.latency * Defs.ROUTE_LATENCY_WEIGHT
+	if seen:
+		cost += l.load_pct(d) * Defs.ROUTE_LOAD_PENALTY
+	return cost
 
+## Таблицы по истине (экономика) и по знаниям каждого игрока (пакеты игрока).
 static func compute(w: World) -> void:
 	var n: int = w.nodes.size()
 	w.routes.clear()
 	w.route_dist.clear()
 	for dst in n:
-		var res: Array = _from_dst(w, dst, n)
+		var res: Array = _from_dst(w, dst, n, null)
 		w.routes.append(res[0])
 		w.route_dist.append(res[1])
+	w.proutes.clear()
+	for p in w.players.size():
+		var table: Array[PackedInt32Array] = []
+		var seen: Variant = w.know[p].link_seen if p < w.know.size() else null
+		for dst in n:
+			table.append(_from_dst(w, dst, n, seen)[0])
+		w.proutes.append(table)
 	w.routes_dirty = false
 
 ## Возвращает [next: PackedInt32Array, dist: PackedInt64Array]. dist[u] — цена пути из u в dst.
-static func _from_dst(w: World, dst: int, n: int) -> Array:
+static func _from_dst(w: World, dst: int, n: int, seen: Variant) -> Array:
 	var dist := PackedInt64Array()
 	dist.resize(n)
 	dist.fill(INF)
@@ -45,23 +57,25 @@ static func _from_dst(w: World, dst: int, n: int) -> Array:
 			if settled[u] == 1:
 				continue
 			# Пакет идёт из u в v: цена направления, исходящего из u.
-			var cand: int = dist[v] + link_cost(l, l.dir_from(u))
+			var known: bool = seen == null or (seen as PackedByteArray)[lid] == 1
+			var cand: int = dist[v] + link_cost(l, l.dir_from(u), known)
 			if cand < dist[u] or (cand == dist[u] and lid < next[u]):
 				dist[u] = cand
 				next[u] = lid
 	return [next, dist]
 
 ## Путь из src в dst по текущим таблицам: список id узлов (включая оба конца). Пусто — нет маршрута.
-static func path(w: World, src: int, dst: int) -> Array[int]:
+static func path(w: World, src: int, dst: int, owner: int = -1) -> Array[int]:
 	var out: Array[int] = [src]
 	if src == dst:
 		return out
-	if w.routes.size() <= dst:
+	var table: Array[PackedInt32Array] = w.route_table(owner)
+	if table.size() <= dst:
 		return []
 	var cur: int = src
 	var guard: int = w.nodes.size()
 	while cur != dst and guard > 0:
-		var lid: int = w.routes[dst][cur]
+		var lid: int = table[dst][cur]
 		if lid < 0:
 			return []
 		cur = w.links[lid].other(cur)

@@ -28,7 +28,7 @@ static func hit_flow(w: World, player: int, pos: Vector2, max_dist: float) -> in
 	for f in w.flows:
 		if f.owner != player:
 			continue
-		var path: Array[int] = Routing.path(w, f.src, f.dst)
+		var path: Array[int] = Routing.path(w, f.src, f.dst, f.owner)
 		for i in range(path.size() - 1):
 			var a: NodeState = w.nodes[path[i]]
 			var b: NodeState = w.nodes[path[i + 1]]

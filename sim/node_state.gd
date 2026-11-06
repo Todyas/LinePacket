@@ -38,6 +38,7 @@ var down: bool = false                     # перегружена и «леж�
 var infect: PackedInt32Array = PackedInt32Array()   # шкала заражения по атакующим
 var brute: PackedInt32Array = PackedInt32Array()    # шкала подбора пароля по атакующим
 var prev_owner: int = -1                   # кто владел до захвата заражением (пока не «закрепились»)
+var ids_cool: PackedInt32Array = PackedInt32Array()  # тик последней записи IDS по атакующим
 var auto_sent: int = 0                     # сколько автоматических пакетов (DATA, KEEPALIVE) отправил узел
 
 func _init() -> void:
@@ -45,6 +46,8 @@ func _init() -> void:
 	capture.resize(Defs.MAX_PLAYERS)
 	infect.resize(Defs.MAX_PLAYERS)
 	brute.resize(Defs.MAX_PLAYERS)
+	ids_cool.resize(Defs.MAX_PLAYERS)
+	ids_cool.fill(-1000000)
 
 func setup_cpu() -> void:
 	cpu_base = int(Defs.NODE_DEFS[type]["cpu"])
@@ -147,5 +150,6 @@ func hash_into(h: Hasher) -> void:
 	h.add(1 if down else 0)
 	h.add_array(infect)
 	h.add_array(brute)
+	h.add_array(ids_cool)
 	h.add(prev_owner)
 	h.add(auto_sent)

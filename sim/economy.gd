@@ -150,6 +150,7 @@ static func release_node(w: World, n: NodeState) -> void:
 	n.prev_owner = -1
 	n.down = false
 	Agents.on_node_lost(w, n.id, old_owner)
+	Knowledge.log_event(w, old_owner, Knowledge.EventKind.NODE_LOST, n.id)
 	n.control = 0
 	n.buffer = 0
 	n.supplier = -1
@@ -201,6 +202,7 @@ static func capture_node(w: World, node: NodeState, owner: int) -> void:
 	node.prev_owner = -1
 	w.players[owner].captures += 1
 	w.routes_dirty = true
+	Knowledge.log_event(w, owner, Knowledge.EventKind.NODE_CAPTURED, node.id)
 	# Потоки INIT на этот узел больше не нужны.
 	var i: int = 0
 	while i < w.flows.size():
@@ -247,6 +249,8 @@ static func takeover(w: World, node: NodeState, attacker: int) -> void:
 	w.players[attacker].captures += 1
 	w.routes_dirty = true
 	Agents.on_node_lost(w, node.id, old)
+	Knowledge.log_event(w, old, Knowledge.EventKind.NODE_LOST, node.id)
+	Knowledge.log_event(w, attacker, Knowledge.EventKind.NODE_CAPTURED, node.id)
 	if node.type == Defs.NodeType.CORE and w.winner < 0:
 		w.winner = attacker
 		w.finished_tick = w.tick

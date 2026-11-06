@@ -6,6 +6,7 @@ var label: Label
 var panel: Panel
 var world: World
 var selected_node: int = -1
+var viewer: int = -1
 
 func _ready() -> void:
 	layer = 5
@@ -28,9 +29,16 @@ func _process(_delta: float) -> void:
 		return
 	panel.visible = selected_node >= 0
 	if selected_node >= 0:
-		label.text = text_for(world, selected_node)
+		label.text = text_for(world, selected_node, viewer)
 
+## Текст карточки глазами viewer (-1 — без тумана). Силуэт — почти ничего, снимок — данные с возрастом.
 static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
+	if viewer >= 0:
+		var lvl: int = Knowledge.level(w, viewer, node_id)
+		if lvl == Knowledge.Level.SILHOUETTE:
+			return "%s — %s\nДанных нет: узел за пределами видимости.\nСкан (клавиша S, ПКМ) покажет его состояние." % [Names.node_label(w.nodes[node_id]), Names.node_type(w.nodes[node_id].type)]
+		if lvl == Knowledge.Level.SNAPSHOT:
+			return _snapshot_text(w, node_id, viewer)
 	var n: NodeState = w.nodes[node_id]
 	var lines: Array[String] = []
 	lines.append("%s — %s" % [Names.node_label(n), Names.node_type(n.type)])
@@ -77,4 +85,28 @@ static func text_for(w: World, node_id: int, viewer: int = -1) -> String:
 			for p in Defs.MAX_PLAYERS:
 				if n.capture[p] > 0:
 					lines.append("  Игрок %d: %d" % [p + 1, n.capture[p]])
+	return "\n".join(lines)
+
+
+static func _snapshot_text(w: World, node_id: int, viewer: int) -> String:
+	var n: NodeState = w.nodes[node_id]
+	var sn: NodeSnap = Knowledge.snap(w, viewer, node_id)
+	var lines: Array[String] = []
+	lines.append("%s — %s" % [Names.node_label(n), Names.node_type(n.type)])
+	lines.append("СНИМОК: данные %d с назад" % (Knowledge.age(w, viewer, node_id) / Defs.TICK_HZ))
+	lines.append("Владелец: %s" % Names.owner_name(sn.owner))
+	if n.type == Defs.NodeType.SWITCH:
+		return "\n".join(lines)
+	if sn.owner >= 0:
+		lines.append("Контроль: %d%%" % (sn.control * 100 / Defs.CONTROL_MAX))
+		lines.append("Доступ: %s" % Names.access_mode(sn.access_mode, 0).replace(" (v0)", ""))
+		lines.append("Ваш доступ: %s" % ("есть" if sn.my_access else "нет"))
+		var soft: Array[String] = []
+		for t in sn.soft:
+			if t >= 0:
+				soft.append("[%s]" % Defs.SOFT_NAMES[t])
+		lines.append("ПО: %s" % (" ".join(soft) if not soft.is_empty() else "нет"))
+		lines.append("Буфер: %d" % sn.buffer)
+		if sn.down:
+			lines.append("Лежала в момент снимка")
 	return "\n".join(lines)

@@ -85,7 +85,7 @@ func _on_button(mb: InputEventMouseButton) -> void:
 func _finish_drag() -> void:
 	var target: int = Picking.hit_node(world, mouse_world, NODE_HIT_RADIUS)
 	if target >= 0 and target != drag_from:
-		submit(Command.start_flow(local_player, world.tick, drag_from, target, flow_type, Defs.FLOW_DEFAULT_RATE))
+		submit(Command.start_flow(local_player, world.tick, drag_from, target, flow_type, flow_rate_for(flow_type)))
 
 func _wheel(screen_pos: Vector2, dir: int) -> void:
 	hover_flow = Picking.hit_flow(world, local_player, mouse_world, FLOW_HIT_PX / camera.zoom.x)
@@ -118,6 +118,10 @@ func _on_key(k: InputEventKey) -> void:
 			submit(Command.stop_flow(local_player, world.tick, hover_flow))
 			hover_flow = -1
 
+## Скан — разовый: поток сам заканчивается, когда скан дошёл.
+static func flow_rate_for(ptype: int) -> int:
+	return Defs.SCAN_FLOW_RATE if ptype == Defs.PacketType.SCAN else Defs.FLOW_DEFAULT_RATE
+
 ## Отладка (только в debug-сборке): переключиться на другую сторону, чтобы играть за обоих.
 func switch_side() -> void:
 	local_player = (local_player + 1) % world.players.size()
@@ -134,7 +138,7 @@ func apply_item(item: Dictionary) -> void:
 	if item["kind"] == "task":
 		submit(Command.queue_task(local_player, world.tick, selected_agent, int(item["task"]), ring_target, int(item["arg"])))
 	elif item["kind"] == "flow" and selected_node >= 0:
-		submit(Command.start_flow(local_player, world.tick, selected_node, ring_target, int(item["flow_type"]), Defs.FLOW_DEFAULT_RATE))
+		submit(Command.start_flow(local_player, world.tick, selected_node, ring_target, int(item["flow_type"]), flow_rate_for(int(item["flow_type"]))))
 
 func submit(cmd: Command) -> void:
 	world.submit(cmd)

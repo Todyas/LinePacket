@@ -20,9 +20,11 @@ func test_ring_menu_on_enemy_machine_offers_attacks() -> void:
 func test_ring_menu_hides_password_cracking_for_keys_or_known_access() -> void:
 	var w: World = TestMaps.siege()
 	w.nodes[2].access_mode = Defs.AccessMode.KEYS
+	Knowledge.update(w)    # игрок видит новое состояние соседней машины
 	check(not _labels(RingMenu.items_for(w, 1, 3, 2)).contains("Подбор"))
 	w.nodes[2].access_mode = Defs.AccessMode.PASSWORD_WEAK
 	w.nodes[2].access_mask |= 2
+	Knowledge.update(w)
 	check(not _labels(RingMenu.items_for(w, 1, 3, 2)).contains("Подбор"))
 
 func test_ring_menu_own_node_clean_and_entrench() -> void:

@@ -16,6 +16,9 @@ var pool: PacketPool = PacketPool.new()
 var routes: Array[PackedInt32Array] = []   # routes[dst][node] = id линка следующего шага или -1
 var route_dist: Array[PackedInt64Array] = []   # route_dist[dst][node] = цена пути node→dst
 var routes_dirty: bool = true
+## Маршруты игроков: строятся по его знаниям (загрузку видно только у наблюдаемых линков). proutes[игрок][цель][узел].
+var proutes: Array = []
+var know: Array[Knowledge] = []             # карты знаний игроков
 
 ## Потери по причинам и доставки по типам пакетов (накопительно).
 const DROP_QUEUE: int = 0     # очередь выходного порта переполнена
@@ -99,6 +102,10 @@ func _apply_start_flow(c: Command) -> bool:
 		return false  # поток можно пустить только со своего узла
 	if not Defs.PLAYER_FLOW_TYPES.has(ptype):
 		return false
+	if ptype == Defs.PacketType.SCAN:
+		var hp: int = Knowledge.hops(self, src, dst)
+		if hp < 0 or hp > Defs.SCAN_MAX_HOPS:
+			return false   # скан достаёт не дальше SCAN_MAX_HOPS линков от узла-источника
 	if rate < Defs.FLOW_MIN_RATE or rate > Defs.FLOW_MAX_RATE:
 		return false
 	var f := FlowState.new()
@@ -164,6 +171,18 @@ func _apply_clear_queue(c: Command) -> bool:
 		a.work_total = 0
 	return true
 
+## Таблица маршрутов для пакетов владельца: по его знаниям; без игрока — по истине.
+func route_table(owner: int) -> Array[PackedInt32Array]:
+	if owner >= 0 and owner < proutes.size():
+		return proutes[owner]
+	return routes
+
+func remove_flow(fid: int) -> void:
+	for i in flows.size():
+		if flows[i].id == fid:
+			flows.remove_at(i)
+			return
+
 func total_drops() -> int:
 	return drops[DROP_QUEUE] + drops[DROP_CPU] + drops[DROP_NOROUTE] + drops[DROP_GATEWAY] + drops[DROP_FIREWALL]
 
@@ -196,6 +215,9 @@ func state_hash() -> int:
 	h.add(agents.size())
 	for a in agents:
 		a.hash_into(h)
+	h.add(know.size())
+	for k in know:
+		k.hash_into(h)
 	pool.hash_into(h)
 	h.add_array(Array(drops))
 	h.add_array(Array(delivered))

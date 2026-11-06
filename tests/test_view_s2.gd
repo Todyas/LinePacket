@@ -37,9 +37,9 @@ func test_init_mode_key_enabled() -> void:
 	ic._on_key(ev)
 	check_eq(ic.flow_type, Defs.PacketType.INIT)
 	var ev2 := InputEventKey.new()
-	ev2.keycode = KEY_S      # SCAN пока недоступен
+	ev2.keycode = KEY_S
 	ev2.pressed = true
 	ic._on_key(ev2)
-	check_eq(ic.flow_type, Defs.PacketType.INIT, "SCAN не должен включаться до появления механики")
+	check_eq(ic.flow_type, Defs.PacketType.SCAN)
 	ic.camera.free()
 	ic.free()

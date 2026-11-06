@@ -56,6 +56,11 @@ func _setup_scenario() -> void:
 			w.submit(Command.queue_task(0, 0, 1, Defs.TaskKind.SET_KEYS, 1))
 			_main.input_ctl.selected_node = 2
 			_main.input_ctl.selected_agent = 1
+		"fog":
+			# Скан до границы тумана: снимки соседей цели рядом с силуэтами остальной карты.
+			w.submit(Command.start_flow(0, 0, 0, 5, Defs.PacketType.SCAN, 4))
+			w.submit(Command.start_flow(0, 0, 0, 2, Defs.PacketType.INIT, 20))
+			_main.input_ctl.selected_node = 5
 		"war":
 			# Витрина шкал атаки: заражение, подбор пароля, лежащая машина, экран итогов.
 			for i in [1, 2, 3]:
