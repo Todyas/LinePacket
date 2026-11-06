@@ -1,0 +1,341 @@
+{
+ "name": "duel",
+ "players": 2,
+ "nodes": [
+  {
+   "id": 0,
+   "type": "core",
+   "x": 90,
+   "y": 450,
+   "owner": 0
+  },
+  {
+   "id": 1,
+   "type": "gateway",
+   "x": 240,
+   "y": 450,
+   "owner": 0
+  },
+  {
+   "id": 2,
+   "type": "machine",
+   "x": 240,
+   "y": 290,
+   "owner": -1
+  },
+  {
+   "id": 3,
+   "type": "machine",
+   "x": 240,
+   "y": 610,
+   "owner": -1
+  },
+  {
+   "id": 4,
+   "type": "switch",
+   "x": 400,
+   "y": 450,
+   "owner": -1
+  },
+  {
+   "id": 5,
+   "type": "machine",
+   "x": 400,
+   "y": 230,
+   "owner": -1
+  },
+  {
+   "id": 6,
+   "type": "machine",
+   "x": 400,
+   "y": 670,
+   "owner": -1
+  },
+  {
+   "id": 7,
+   "type": "machine",
+   "x": 570,
+   "y": 340,
+   "owner": -1
+  },
+  {
+   "id": 8,
+   "type": "machine",
+   "x": 570,
+   "y": 560,
+   "owner": -1
+  },
+  {
+   "id": 9,
+   "type": "machine",
+   "x": 570,
+   "y": 130,
+   "owner": -1
+  },
+  {
+   "id": 10,
+   "type": "core",
+   "x": 1510,
+   "y": 450,
+   "owner": 1
+  },
+  {
+   "id": 11,
+   "type": "gateway",
+   "x": 1360,
+   "y": 450,
+   "owner": 1
+  },
+  {
+   "id": 12,
+   "type": "machine",
+   "x": 1360,
+   "y": 290,
+   "owner": -1
+  },
+  {
+   "id": 13,
+   "type": "machine",
+   "x": 1360,
+   "y": 610,
+   "owner": -1
+  },
+  {
+   "id": 14,
+   "type": "switch",
+   "x": 1200,
+   "y": 450,
+   "owner": -1
+  },
+  {
+   "id": 15,
+   "type": "machine",
+   "x": 1200,
+   "y": 230,
+   "owner": -1
+  },
+  {
+   "id": 16,
+   "type": "machine",
+   "x": 1200,
+   "y": 670,
+   "owner": -1
+  },
+  {
+   "id": 17,
+   "type": "machine",
+   "x": 1030,
+   "y": 340,
+   "owner": -1
+  },
+  {
+   "id": 18,
+   "type": "machine",
+   "x": 1030,
+   "y": 560,
+   "owner": -1
+  },
+  {
+   "id": 19,
+   "type": "machine",
+   "x": 1030,
+   "y": 130,
+   "owner": -1
+  },
+  {
+   "id": 20,
+   "type": "gateway",
+   "x": 800,
+   "y": 150,
+   "owner": -1
+  },
+  {
+   "id": 21,
+   "type": "gateway",
+   "x": 800,
+   "y": 750,
+   "owner": -1
+  },
+  {
+   "id": 22,
+   "type": "switch",
+   "x": 800,
+   "y": 370,
+   "owner": -1
+  },
+  {
+   "id": 23,
+   "type": "switch",
+   "x": 800,
+   "y": 530,
+   "owner": -1
+  }
+ ],
+ "links": [
+  {
+   "a": 0,
+   "b": 1,
+   "kind": "optic"
+  },
+  {
+   "a": 1,
+   "b": 2,
+   "kind": "cable"
+  },
+  {
+   "a": 1,
+   "b": 3,
+   "kind": "cable"
+  },
+  {
+   "a": 1,
+   "b": 4,
+   "kind": "cable"
+  },
+  {
+   "a": 2,
+   "b": 5,
+   "kind": "cable"
+  },
+  {
+   "a": 3,
+   "b": 6,
+   "kind": "cable"
+  },
+  {
+   "a": 4,
+   "b": 5,
+   "kind": "cable"
+  },
+  {
+   "a": 4,
+   "b": 6,
+   "kind": "cable"
+  },
+  {
+   "a": 5,
+   "b": 7,
+   "kind": "wifi"
+  },
+  {
+   "a": 6,
+   "b": 8,
+   "kind": "wifi"
+  },
+  {
+   "a": 7,
+   "b": 8,
+   "kind": "cable"
+  },
+  {
+   "a": 5,
+   "b": 9,
+   "kind": "cable"
+  },
+  {
+   "a": 10,
+   "b": 11,
+   "kind": "optic"
+  },
+  {
+   "a": 11,
+   "b": 12,
+   "kind": "cable"
+  },
+  {
+   "a": 11,
+   "b": 13,
+   "kind": "cable"
+  },
+  {
+   "a": 11,
+   "b": 14,
+   "kind": "cable"
+  },
+  {
+   "a": 12,
+   "b": 15,
+   "kind": "cable"
+  },
+  {
+   "a": 13,
+   "b": 16,
+   "kind": "cable"
+  },
+  {
+   "a": 14,
+   "b": 15,
+   "kind": "cable"
+  },
+  {
+   "a": 14,
+   "b": 16,
+   "kind": "cable"
+  },
+  {
+   "a": 15,
+   "b": 17,
+   "kind": "wifi"
+  },
+  {
+   "a": 16,
+   "b": 18,
+   "kind": "wifi"
+  },
+  {
+   "a": 17,
+   "b": 18,
+   "kind": "cable"
+  },
+  {
+   "a": 15,
+   "b": 19,
+   "kind": "cable"
+  },
+  {
+   "a": 9,
+   "b": 20,
+   "kind": "cable"
+  },
+  {
+   "a": 19,
+   "b": 20,
+   "kind": "cable"
+  },
+  {
+   "a": 8,
+   "b": 21,
+   "kind": "cable"
+  },
+  {
+   "a": 18,
+   "b": 21,
+   "kind": "cable"
+  },
+  {
+   "a": 7,
+   "b": 22,
+   "kind": "cable"
+  },
+  {
+   "a": 17,
+   "b": 22,
+   "kind": "cable"
+  },
+  {
+   "a": 8,
+   "b": 23,
+   "kind": "cable"
+  },
+  {
+   "a": 18,
+   "b": 23,
+   "kind": "cable"
+  },
+  {
+   "a": 22,
+   "b": 23,
+   "kind": "cable"
+  }
+ ]
+}
